@@ -1,0 +1,11 @@
+name: afan-qisi
+
+services:
+  tutor:
+    build: .
+    image: afan-qisi:local
+    container_name: afan-qisi
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${AFAN_PORT:-3210}:3210"

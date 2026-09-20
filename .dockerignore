@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!.dockerignore
+!server.js
+!public/
+!public/**
+**/.DS_Store
+**/._*

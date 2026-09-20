@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>知识迷雾寻宝 · AI 讲题进度演示</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230a0f26'/%3E%3Ctext x='50' y='70' font-size='56' text-anchor='middle' fill='%23ffd166'%3E%3F%3C/text%3E%3C/svg%3E" />
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#070b1a;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;-webkit-user-select:none;user-select:none}
+  [hidden]{display:none!important}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:12px}
+  #wrap{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.55);background:#0b1030}
+  #cv{display:block;width:100%;height:100%}
+  .vignette{position:absolute;inset:0;pointer-events:none;z-index:3;background:radial-gradient(120% 120% at 50% 45%,transparent 55%,rgba(4,7,18,.4) 100%)}
+
+  /* ===== HUD ===== */
+  #hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px;pointer-events:none;z-index:5}
+  .hud-panel{background:rgba(10,15,36,.66);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:9px 13px;color:#eef2ff}
+  #hud .title{display:flex;align-items:center;gap:7px;font-size:16px;font-weight:800;letter-spacing:.5px;color:#ffe9b0}
+  #hud .title svg{flex:none}
+  #hud .sub{font-size:11px;color:#9fb0dd;margin-top:2px}
+  .hud-prog{display:flex;align-items:center;gap:10px}
+  .hud-prog .num{font-size:20px;font-weight:800;color:#ffd166;line-height:1}
+  .hud-prog .lbl{font-size:11px;color:#9fb0dd}
+  #segs{display:flex;gap:5px;margin-top:8px}
+  #segs i{width:13px;height:7px;border-radius:4px;background:rgba(255,255,255,.14);transition:background .35s,box-shadow .35s}
+  #segs i.on{background:linear-gradient(90deg,#ffd166,#f4a261);box-shadow:0 0 10px rgba(255,209,102,.55)}
+
+  /* ===== 演示控制条 ===== */
+  #ctrl{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:9px;padding:9px 12px;background:rgba(10,15,36,.8);border:1px solid rgba(255,255,255,.1);border-radius:16px;z-index:6;max-width:96%;flex-wrap:wrap;justify-content:center}
+  #wrap.embed #ctrl{display:none}
+  .btn{border:0;border-radius:12px;padding:9px 15px;font-size:13.5px;font-weight:700;color:#fff;cursor:pointer;transition:transform .12s,filter .12s;font-family:inherit;white-space:nowrap}
+  .btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px) scale(.98)}
+  .btn-right{background:linear-gradient(180deg,#0acf9a,#07b389);box-shadow:0 6px 16px rgba(7,179,137,.35)}
+  .btn-wrong{background:linear-gradient(180deg,#ffa04d,#f4842e);box-shadow:0 6px 16px rgba(244,132,46,.35)}
+  .btn-reset{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16)}
+  .btn-doc{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16)}
+  .ctrl-hint{font-size:11px;color:#93a3d6;white-space:nowrap}
+  #qText{font-size:12px;font-weight:700;color:#c7d4ff;background:rgba(255,255,255,.08);padding:6px 10px;border-radius:9px;white-space:nowrap}
+
+  /* ===== 通关弹层 ===== */
+  #celeb{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:8;background:radial-gradient(80% 80% at 50% 50%,rgba(10,14,32,.22),rgba(10,14,32,.62));opacity:0;transition:opacity .6s;pointer-events:none}
+  #celeb.show{opacity:1;pointer-events:auto}
+  .celeb-box{text-align:center;transform:scale(.85);transition:transform .6s cubic-bezier(.2,1.4,.4,1)}
+  #celeb.show .celeb-box{transform:scale(1)}
+  .celeb-title{font-size:40px;font-weight:900;color:#ffe9b0;text-shadow:0 4px 34px rgba(255,209,102,.5)}
+  .celeb-sub{font-size:15px;color:#dfe7ff;margin-top:10px}
+  .celeb-star{display:inline-block;line-height:0;filter:drop-shadow(0 0 18px rgba(255,209,102,.85));animation:starPulse 1.4s ease-in-out infinite}
+  @keyframes starPulse{0%,100%{transform:scale(1) rotate(-8deg)}50%{transform:scale(1.18) rotate(8deg)}}
+  #btnAgain{margin-top:20px;background:linear-gradient(180deg,#ffd166,#f4a261);color:#3c2f10;box-shadow:0 8px 22px rgba(255,190,80,.4)}
+  #wrap.embed #btnAgain{display:none}
+
+  /* ===== 接入说明弹层 ===== */
+  #docModal{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:rgba(4,7,18,.74)}
+  .doc-card{width:min(660px,94%);max-height:84%;overflow:auto;background:#0d1430;border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:20px 22px;color:#e6ecff}
+  .doc-card h3{font-size:15px;margin:16px 0 8px}
+  .doc-card h3:first-child{margin-top:0}
+  .doc-card p{font-size:12.5px;color:#9fb0dd;margin-bottom:6px;line-height:1.6}
+  .doc-card pre{background:#070b1e;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;font-size:12px;line-height:1.65;overflow:auto;color:#c9d6ff;white-space:pre;font-family:ui-monospace,Consolas,monospace}
+  .doc-card code{color:#ffd166}
+  .doc-close{display:block;margin:18px auto 0;background:linear-gradient(180deg,#0acf9a,#07b389);box-shadow:0 6px 16px rgba(7,179,137,.35)}
+
+  @media (max-width:640px){
+    #hud .title{font-size:14px}
+    #hud .sub{font-size:11px}
+    .hud-prog .num{font-size:17px}
+    #segs i{width:10px;height:6px}
+    .ctrl-hint{display:none}
+    .btn{min-width:44px;min-height:44px;padding:9px 14px;font-size:13px}
+    #qText{min-height:32px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #celeb,.celeb-box{transition:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="wrap">
+    <canvas id="cv"></canvas>
+    <div class="vignette"></div>
+
+    <div id="hud">
+      <div class="hud-panel">
+        <div class="title">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ffd166" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 14 14l-5.5 1.5L10 10z"/></svg>
+          知识迷雾寻宝
+        </div>
+        <div class="sub">AI 讲题 · 闯关进度</div>
+      </div>
+      <div class="hud-panel">
+        <div class="hud-prog">
+          <span class="lbl">迷雾进度</span>
+          <span class="num" id="progText">0/6</span>
+        </div>
+        <div id="segs"></div>
+      </div>
+    </div>
+
+    <div id="ctrl">
+      <span id="qText">第 1 题</span>
+      <button class="btn btn-right" id="btnRight">答对一题</button>
+      <button class="btn btn-wrong" id="btnWrong">答错一题</button>
+      <button class="btn btn-reset" id="btnReset">重新开始</button>
+      <button class="btn btn-doc" id="btnDoc">接入说明</button>
+      <span class="ctrl-hint">快捷键：空格=答对 · X=答错 · R=重来</span>
+    </div>
+
+    <div id="celeb" hidden>
+      <div class="celeb-box">
+        <div class="celeb-star">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="#ffd166" stroke="#f4a261" stroke-width="0.6"><path d="M12 2l2.6 6.6L21 11l-6.4 2.4L12 20l-2.6-6.6L3 11l6.4-2.4z"/><path d="M19 3l.9 2.1L22 6l-2.1.9L19 9l-.9-2.1L16 6l2.1-.9z" fill="#ffe9b0"/></svg>
+        </div>
+        <div class="celeb-title">恭喜通关！</div>
+        <div class="celeb-sub">迷雾散尽，宝藏属于你！</div>
+        <button class="btn" id="btnAgain">再玩一次</button>
+      </div>
+    </div>
+
+    <div id="docModal" hidden>
+      <div class="doc-card">
+        <h3>① 嵌入到 AI 讲题页面</h3>
+        <p>使用 iframe 引入（<code>mode=embed</code> 会隐藏演示控制条，只保留场景与进度）</p>
+        <pre>&lt;iframe src="knowledge-treasure-demo.html?mode=embed&amp;total=6"
+        style="width:100%;aspect-ratio:16/9;border:0;border-radius:16px"&gt;&lt;/iframe&gt;</pre>
+
+        <h3>② 在父页面控制进度（postMessage）</h3>
+        <p>学生每次答题后，把结果告诉 demo</p>
+        <pre>const kt = document.querySelector('iframe').contentWindow;
+kt.postMessage({target:'knowledge-treasure', type:'answer', correct:true},  '*');  // 学生答对
+kt.postMessage({target:'knowledge-treasure', type:'answer', correct:false}, '*');  // 学生答错
+kt.postMessage({target:'knowledge-treasure', type:'reset'},                 '*');  // 重新开始
+kt.postMessage({target:'knowledge-treasure', type:'setProgress', value:3},  '*');  // 直接跳到第 3 题进度</pre>
+
+        <h3>③ 监听进度与通关事件</h3>
+        <pre>window.addEventListener('message', e =&gt; {
+  if (e.data &amp;&amp; e.data.source === 'knowledge-treasure' &amp;&amp; e.data.type === 'progress') {
+    console.log('进度', e.data.progress, '/', e.data.total, e.data.complete);
+  }
+});</pre>
+
+        <h3>④ 同页面直接调用（JS API）</h3>
+        <pre>KnowledgeTreasure.answer(true);              // 答对
+KnowledgeTreasure.answer(false);             // 答错
+KnowledgeTreasure.reset();
+KnowledgeTreasure.setProgress(3);
+KnowledgeTreasure.onComplete = () =&gt; { /* 通关回调 */ };</pre>
+
+        <p style="margin-top:14px">参数：<code>?total=6</code> 设置题目数（3~12），<code>?mode=embed</code> 嵌入模式。</p>
+        <button class="btn doc-close" id="btnDocClose">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= 配置 ================= */
+  var qs = new URLSearchParams(location.search);
+  function clampInt(v, min, max, dft) {
+    var n = parseInt(v, 10);
+    return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : dft;
+  }
+  var CONFIG = {
+    total: clampInt(qs.get('total'), 3, 12, 6),
+    mode: qs.get('mode') === 'embed' ? 'embed' : 'demo',
+    duration: 0.85
+  };
+  var W = 1280, H = 720;
+
+  var state = {
+    p: 0, t: 0, moving: false,
+    wrongFlash: 0, bubble: 0,
+    celebrating: false, celebTimer: 0,
+    confetti: [], sparks: [], floats: [], time: 0
+  };
+
+  /* ================= 画布与缩放 ================= */
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var fogCv = document.createElement('canvas'), fctx = fogCv.getContext('2d');
+  var scale = 1, dpr = 1;
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    var wrap = document.getElementById('wrap');
+    var w = Math.min(window.innerWidth - 8, (window.innerHeight - 8) * W / H);
+    w = Math.max(240, Math.min(w, window.innerWidth - 8));
+    var h = w * H / W;
+    wrap.style.width = w + 'px';
+    wrap.style.height = h + 'px';
+    scale = w / W;
+    cv.width = Math.round(W * scale * dpr);
+    cv.height = Math.round(H * scale * dpr);
+    fogCv.width = cv.width;
+    fogCv.height = cv.height;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* ================= 路径（Catmull-Rom 采样） ================= */
+  var PTS = [[110, 650], [300, 610], [430, 535], [520, 440], [660, 475], [800, 390], [950, 255], [1070, 175]];
+  function buildPath(pts) {
+    var out = [], n = pts.length, i, s, s2, s3, p0, p1, p2, p3, steps;
+    for (i = 0; i < n - 1; i++) {
+      p0 = pts[Math.max(0, i - 1)]; p1 = pts[i]; p2 = pts[i + 1]; p3 = pts[Math.min(n - 1, i + 2)];
+      steps = Math.max(10, Math.round(26 * Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 130));
+      for (s = 0; s <= 1; s += 1 / steps) {
+        s2 = s * s; s3 = s2 * s;
+        out.push([
+          0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * s + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * s2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * s3),
+          0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * s + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * s2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * s3)
+        ]);
+      }
+    }
+    out.push([pts[n - 1][0], pts[n - 1][1]]);
+    var lens = [0], total = 0;
+    for (i = 1; i < out.length; i++) {
+      total += Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]);
+      lens.push(total);
+    }
+    return { pts: out, lens: lens, total: total };
+  }
+  var path = buildPath(PTS);
+  function pathPoint(t) {
+    var d = Math.max(0, Math.min(1, t)) * path.total;
+    var lo = 0, hi = path.pts.length - 1, mid;
+    while (lo < hi) { mid = (lo + hi) >> 1; if (path.lens[mid] < d) lo = mid + 1; else hi = mid; }
+    var i = Math.max(1, Math.min(path.pts.length - 1, lo));
+    var seg = path.lens[i] - path.lens[i - 1] || 1;
+    var f = (d - path.lens[i - 1]) / seg;
+    var a = path.pts[i - 1], b = path.pts[i];
+    return { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f };
+  }
+  function pathAngle(t) {
+    var a = pathPoint(Math.max(0, t - 0.004)), b = pathPoint(Math.min(1, t + 0.004));
+    return Math.atan2(b.y - a.y, b.x - a.x);
+  }
+  function nodeT(i) { return (i - 0.5) / CONFIG.total; }
+
+  /* ================= 静态元素 ================= */
+  var stars = [], i;
+  for (i = 0; i < 90; i++) stars.push({ x: Math.random() * W, y: Math.random() * H * 0.55, r: Math.random() * 1.6 + 0.4, ph: Math.random() * 6.28, sp: 0.5 + Math.random() });
+  var fogBlobs = [], fogCount = Math.min(30, 14 + CONFIG.total * 2);
+  for (i = 0; i < fogCount; i++) fogBlobs.push({
+    tau: (i + 0.5) / fogCount * 1.25,
+    r: 150 + Math.random() * 180,
+    alpha: 0.10 + Math.random() * 0.14,
+    drift: Math.random() * 0.05,
+    speed: (0.002 + Math.random() * 0.006) * (Math.random() < 0.5 ? 1 : -1),
+    wob: Math.random() * 6.28
+  });
+  var fireflies = [];
+  for (i = 0; i < 22; i++) fireflies.push({ tau: Math.random() * 1.05, off: (Math.random() - 0.5) * 130, ph: Math.random() * 6.28, sp: 0.4 + Math.random() * 0.8 });
+
+  var fogSprite = document.createElement('canvas');
+  fogSprite.width = fogSprite.height = 256;
+  (function () {
+    var g = fogSprite.getContext('2d');
+    var grad = g.createRadialGradient(128, 128, 10, 128, 128, 128);
+    grad.addColorStop(0, 'rgba(214,226,248,0.6)');
+    grad.addColorStop(0.55, 'rgba(184,200,232,0.3)');
+    grad.addColorStop(1, 'rgba(184,200,232,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 256, 256);
+  })();
+
+  function rr(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /* ================= 背景 ================= */
+  function drawBg(now) {
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0b1030');
+    g.addColorStop(0.55, '#141b3e');
+    g.addColorStop(1, '#1c2347');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var tw = 0.5 + 0.5 * Math.sin(now * 0.001 * s.sp + s.ph);
+      ctx.globalAlpha = 0.25 + 0.55 * tw;
+      ctx.fillStyle = '#e8eeff';
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    var mx = 1100, my = 92;
+    var mg = ctx.createRadialGradient(mx, my, 8, mx, my, 95);
+    mg.addColorStop(0, 'rgba(255,244,214,0.95)');
+    mg.addColorStop(0.4, 'rgba(255,238,190,0.5)');
+    mg.addColorStop(1, 'rgba(255,238,190,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath(); ctx.arc(mx, my, 95, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff3cf';
+    ctx.beginPath(); ctx.arc(mx, my, 33, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,205,0.85)';
+    ctx.beginPath(); ctx.arc(mx - 12, my - 7, 6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + 9, my + 9, 5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + 2, my - 14, 4, 0, 7); ctx.fill();
+
+    ctx.fillStyle = '#121a3c';
+    ctx.beginPath(); ctx.moveTo(0, 575);
+    ctx.quadraticCurveTo(210, 420, 430, 560);
+    ctx.quadraticCurveTo(570, 415, 770, 555);
+    ctx.quadraticCurveTo(950, 395, 1110, 560);
+    ctx.lineTo(1280, 530); ctx.lineTo(1280, 720); ctx.lineTo(0, 720);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#0e1533';
+    ctx.beginPath(); ctx.moveTo(0, 640);
+    ctx.quadraticCurveTo(330, 540, 640, 620);
+    ctx.quadraticCurveTo(950, 590, 1280, 640);
+    ctx.lineTo(1280, 720); ctx.lineTo(0, 720);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#1b2350';
+    ctx.beginPath(); ctx.moveTo(0, 668);
+    ctx.quadraticCurveTo(320, 620, 660, 660);
+    ctx.quadraticCurveTo(980, 636, 1280, 668);
+    ctx.lineTo(1280, 720); ctx.lineTo(0, 720);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* ================= 路径 ================= */
+  function strokePath() {
+    ctx.beginPath();
+    ctx.moveTo(path.pts[0][0], path.pts[0][1]);
+    for (var i = 1; i < path.pts.length; i++) ctx.lineTo(path.pts[i][0], path.pts[i][1]);
+    ctx.stroke();
+  }
+  function drawPath(now) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(6,10,26,0.85)';
+    ctx.lineWidth = 36; ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 14;
+    strokePath();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,209,102,0.92)';
+    ctx.lineWidth = 20; ctx.shadowColor = 'rgba(255,190,80,0.85)'; ctx.shadowBlur = 26;
+    strokePath();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,244,205,0.85)';
+    ctx.lineWidth = 6; ctx.shadowColor = 'rgba(255,236,170,1)'; ctx.shadowBlur = 14;
+    ctx.setLineDash([26, 62]);
+    ctx.lineDashOffset = -now * 0.05;
+    strokePath();
+    ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawStartSign() {
+    var p = pathPoint(0.012);
+    var x = p.x - 26, y = p.y + 4;
+    ctx.fillStyle = '#5a3d28';
+    ctx.fillRect(x - 4, y - 24, 8, 32);
+    ctx.fillStyle = '#8a5a34';
+    rr(x - 34, y - 48, 68, 26, 6);
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffe9b0';
+    ctx.font = '700 15px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('起点', x, y - 35);
+  }
+
+  /* ================= 关卡节点 ================= */
+  function drawNodes(now) {
+    for (var i = 1; i <= CONFIG.total; i++) {
+      var pos = pathPoint(nodeT(i));
+      var x = pos.x, y = pos.y - 42;
+      var done = i <= state.p;
+      var cur = i === state.p + 1 && state.p < CONFIG.total;
+      ctx.fillStyle = 'rgba(6,10,26,0.5)';
+      ctx.beginPath(); ctx.ellipse(x, y + 32, 27, 8, 0, 0, 7); ctx.fill();
+      if (done) {
+        var glow = 0.75 + 0.25 * Math.sin(now * 0.004 + i);
+        ctx.shadowColor = 'rgba(255,209,102,0.85)'; ctx.shadowBlur = 22 * glow;
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#fff3cd'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke();
+        ctx.fillStyle = '#3c2f10';
+        ctx.font = '800 17px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✓', x, y + 1);
+      } else {
+        var dim = cur ? 1 : 0.55;
+        ctx.globalAlpha = dim;
+        if (cur) {
+          var pr = 24 + 5 * Math.sin(now * 0.006);
+          ctx.strokeStyle = 'rgba(255,209,102,0.9)'; ctx.lineWidth = 3;
+          ctx.shadowColor = 'rgba(255,209,102,0.9)'; ctx.shadowBlur = 14;
+          ctx.beginPath(); ctx.arc(x, y, pr, 0, 7); ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillStyle = cur ? '#2a3a6b' : '#232c52';
+        ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.fill();
+        ctx.strokeStyle = cur ? '#ffd166' : '#3a4a80'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.stroke();
+        ctx.fillStyle = cur ? '#ffe9b0' : '#7f90c4';
+        ctx.font = '800 17px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('?', x, y + 1);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  /* ================= 宝箱 ================= */
+  function drawTreasure(now) {
+    var pos = pathPoint(1);
+    var x = pos.x, y = pos.y - 8;
+    var opened = state.p >= CONFIG.total;
+    var pulse = 0.55 + 0.45 * Math.sin(now * 0.003);
+    ctx.fillStyle = '#1a2348';
+    ctx.beginPath(); ctx.ellipse(x, y + 36, 60, 16, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#202a54';
+    ctx.beginPath();
+    ctx.moveTo(x - 50, y + 30);
+    ctx.quadraticCurveTo(x, y + 12, x + 50, y + 30);
+    ctx.lineTo(x + 42, y + 46); ctx.lineTo(x - 42, y + 46);
+    ctx.closePath(); ctx.fill();
+
+    if (!opened) {
+      var g = ctx.createRadialGradient(x, y, 4, x, y, 72 + 26 * pulse);
+      g.addColorStop(0, 'rgba(255,224,140,' + (0.28 + 0.18 * pulse).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255,224,140,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, 98, 0, 7); ctx.fill();
+    } else {
+      var lg = ctx.createLinearGradient(x, y - 300, x, y);
+      lg.addColorStop(0, 'rgba(255,226,140,0)');
+      lg.addColorStop(1, 'rgba(255,226,140,0.55)');
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.moveTo(x - 64, y); ctx.lineTo(x - 28, y - 300);
+      ctx.lineTo(x + 28, y - 300); ctx.lineTo(x + 64, y);
+      ctx.closePath(); ctx.fill();
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = 'rgba(255,236,170,0.65)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      var rot = now * 0.0006, a, r0, r1;
+      for (var i2 = 0; i2 < 10; i2++) {
+        a = rot + i2 * Math.PI / 5;
+        r0 = 40; r1 = 70 + 14 * Math.sin(now * 0.005 + i2);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+        ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#a06a2f';
+    rr(-30, -14, 60, 34, 6);
+    ctx.fillStyle = '#7d4e22';
+    ctx.fillRect(-30, 6, 60, 5);
+    ctx.fillStyle = '#ffd166';
+    ctx.fillRect(-30, -14, 60, 5);
+    ctx.fillStyle = '#ffd166';
+    rr(-6, -8, 12, 14, 3);
+    ctx.fillStyle = '#7d4e22';
+    ctx.fillRect(-3, -4, 6, 8);
+    if (opened) {
+      ctx.save();
+      ctx.translate(0, -14); ctx.rotate(-0.32);
+      ctx.fillStyle = '#8a5a2e';
+      rr(-32, -14, 64, 12, 5);
+      ctx.fillStyle = '#ffd166';
+      ctx.fillRect(-32, -14, 64, 4);
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,246,205,0.95)';
+      ctx.beginPath(); ctx.ellipse(0, -3, 22, 11, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath(); ctx.arc(-9, -4, 5, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, -8, 5, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(9, -4, 5, 0, 7); ctx.fill();
+    } else {
+      ctx.fillStyle = '#c07f3c';
+      ctx.beginPath(); ctx.arc(0, -14, 31, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, -14, 31, Math.PI, 0); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ================= 小探险家 ================= */
+  function drawLantern(lx, ly) {
+    var g = ctx.createRadialGradient(lx, ly, 2, lx, ly, 34);
+    g.addColorStop(0, 'rgba(255,224,140,0.85)');
+    g.addColorStop(1, 'rgba(255,224,140,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(lx, ly, 34, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffd166';
+    rr(lx - 6, ly - 8, 12, 13, 3);
+    ctx.strokeStyle = '#8a5a2e'; ctx.lineWidth = 2;
+    ctx.strokeRect(lx - 6, ly - 8, 12, 13);
+    ctx.fillStyle = '#fff3cf';
+    ctx.beginPath(); ctx.arc(lx, ly - 1, 3, 0, 7); ctx.fill();
+  }
+
+  function drawKid(now) {
+    var pos = pathPoint(state.t);
+    var ang = pathAngle(state.t);
+    var dir = Math.cos(ang) >= 0 ? 1 : -1;
+    var bob = state.moving ? Math.abs(Math.sin(state.time * 14)) * 4 : Math.sin(state.time * 3) * 1.2;
+    var x = pos.x, y = pos.y - 52 + bob * 0.35;
+    var sway = state.wrongFlash > 0 ? Math.sin(state.time * 60) * 6 * state.wrongFlash : 0;
+    ctx.save();
+    ctx.translate(x + sway, y);
+    ctx.scale(dir, 1);
+    ctx.fillStyle = 'rgba(5,8,20,0.5)';
+    ctx.beginPath(); ctx.ellipse(0, 48, 23, 6, 0, 0, 7); ctx.fill();
+    var swing = state.moving ? Math.sin(state.time * 14) * 5 : 0;
+    ctx.strokeStyle = '#2b3a67'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-6, 30); ctx.lineTo(-6 + swing, 42); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6, 30); ctx.lineTo(6 - swing, 42); ctx.stroke();
+    ctx.fillStyle = '#e8895a';
+    rr(-21, 4, 17, 24, 6);
+    ctx.strokeStyle = '#b96a41'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-14, 8); ctx.lineTo(-10, 26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-18, 8); ctx.lineTo(-13, 26); ctx.stroke();
+    ctx.fillStyle = '#3aa6a0';
+    rr(-12, -6, 24, 27, 9);
+    ctx.fillStyle = '#f7d794';
+    rr(-12, 10, 24, 6, 3);
+    ctx.strokeStyle = '#2b3a67'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(10, 2); ctx.lineTo(20, 10); ctx.stroke();
+    ctx.strokeStyle = '#7a5230'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(20, 10); ctx.lineTo(27, -8); ctx.stroke();
+    drawLantern(27, -9);
+    ctx.fillStyle = '#ffd9b3';
+    ctx.beginPath(); ctx.arc(0, -23, 13, 0, 7); ctx.fill();
+    ctx.fillStyle = '#c96f4a';
+    ctx.beginPath(); ctx.arc(0, -29, 14, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-14, -30, 28, 5);
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(5, -21, 1.8, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(-5, -21, 1.8, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,120,120,0.5)';
+    ctx.beginPath(); ctx.arc(9, -17, 2.6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(-9, -17, 2.6, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(0, -18, 5, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBubble(now) {
+    if (state.bubble <= 0) return;
+    var pos = pathPoint(state.t);
+    var x = pos.x, y = pos.y - 128;
+    var alpha = Math.min(1, state.bubble / 0.5);
+    var bobY = Math.sin(now * 0.006) * 3;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    rr(x - 92, y + bobY - 21, 184, 42, 17);
+    ctx.beginPath();
+    ctx.moveTo(x - 12, y + bobY + 18);
+    ctx.lineTo(x, y + bobY + 28);
+    ctx.lineTo(x + 12, y + bobY + 18);
+    ctx.fill();
+    ctx.fillStyle = '#5b3f2e';
+    ctx.font = '700 15px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('答错啦，再想想～', x, y + bobY + 1);
+    ctx.restore();
+  }
+
+  /* ================= 迷雾 ================= */
+  function fogFactor(t, f) {
+    var d = t - f * 1.12;
+    if (d >= 0) return Math.min(0.95, 0.46 + d * 1.5);
+    return Math.max(0.04, 0.46 + d * 2.4);
+  }
+  function drawFog(now) {
+    fctx.clearRect(0, 0, cv.width, cv.height);
+    fctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    var f = state.p / CONFIG.total;
+    var fadeAll = state.celebrating ? 0.35 : 1;
+    var veil = (0.3 - 0.26 * f) * fadeAll;
+    if (veil > 0.01) {
+      fctx.fillStyle = 'rgba(196,210,240,' + veil.toFixed(3) + ')';
+      fctx.fillRect(0, 0, W, H);
+    }
+    for (var i = 0; i < fogBlobs.length; i++) {
+      var b = fogBlobs[i];
+      b.drift += b.speed * 0.016;
+      var t = (b.tau + b.drift) % 1.25;
+      var pos = pathPoint(t);
+      var yy = Math.sin(now * 0.0005 + b.wob) * 14;
+      var a = b.alpha * fogFactor(t, f) * fadeAll;
+      if (a < 0.012) continue;
+      fctx.globalAlpha = a;
+      fctx.drawImage(fogSprite, pos.x - b.r / 2, pos.y - b.r / 2 + yy, b.r, b.r);
+      fctx.drawImage(fogSprite, pos.x - b.r * 0.75, pos.y - b.r * 0.55 + yy, b.r * 0.85, b.r * 0.85);
+    }
+    fctx.globalAlpha = 1;
+    fctx.globalCompositeOperation = 'destination-out';
+    function light(lx, ly, r, a) {
+      var g = fctx.createRadialGradient(lx, ly, r * 0.15, lx, ly, r);
+      g.addColorStop(0, 'rgba(0,0,0,' + a + ')');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      fctx.fillStyle = g;
+      fctx.beginPath(); fctx.arc(lx, ly, r, 0, 7); fctx.fill();
+    }
+    var cp = pathPoint(state.t);
+    light(cp.x, cp.y - 30, 235, 0.95);
+    for (var k = 1; k <= state.p; k++) {
+      var np = pathPoint(nodeT(k));
+      light(np.x, np.y - 40, 105, 0.85);
+    }
+    if (state.p >= CONFIG.total) {
+      var tp = pathPoint(1);
+      light(tp.x, tp.y - 20, 330, 0.92);
+    }
+    fctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* ================= 萤火虫 ================= */
+  function drawFireflies(now) {
+    for (var i = 0; i < fireflies.length; i++) {
+      var fl = fireflies[i];
+      var pos = pathPoint(fl.tau);
+      var x = pos.x + fl.off * 0.6 + Math.sin(now * 0.0008 + fl.ph) * 20;
+      var y = pos.y - 30 + Math.cos(now * 0.0009 + fl.ph * 1.7) * 16;
+      var a = 0.25 + 0.55 * Math.max(0, Math.sin(now * 0.002 * fl.sp + fl.ph));
+      ctx.fillStyle = 'rgba(255,236,170,' + a.toFixed(3) + ')';
+      ctx.shadowColor = 'rgba(255,230,150,0.9)'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  /* ================= 粒子 ================= */
+  var COLORS = ['#ffd166', '#4ecdc4', '#ff9f43', '#ff6b9d', '#a29bfe', '#f8f3d9'];
+  function spawnConfetti(x, y, n) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * 6.28, sp = 4 + Math.random() * 9;
+      state.confetti.push({
+        x: x, y: y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 6,
+        g: 0.22, rot: Math.random() * 6.3, vr: (Math.random() - 0.5) * 0.4,
+        life: 100 + Math.random() * 60, size: 4 + Math.random() * 5,
+        color: COLORS[(Math.random() * COLORS.length) | 0]
+      });
+    }
+  }
+  function spawnSparks(x, y) {
+    for (var i = 0; i < 16; i++) {
+      var a = Math.random() * 6.28, sp = 55 + Math.random() * 130;
+      state.sparks.push({ x: x, y: y, a: a, sp: sp, t: 0, life: 0.7 + Math.random() * 0.4 });
+    }
+  }
+  function updateParticles(dt) {
+    var i, c;
+    for (i = state.confetti.length - 1; i >= 0; i--) {
+      c = state.confetti[i];
+      c.vy += c.g * 60 * dt;
+      c.x += c.vx * 60 * dt; c.y += c.vy * 60 * dt;
+      c.rot += c.vr; c.life -= dt * 60;
+      if (c.life <= 0) state.confetti.splice(i, 1);
+    }
+    for (i = state.sparks.length - 1; i >= 0; i--) {
+      c = state.sparks[i];
+      c.t += dt;
+      if (c.t >= c.life) state.sparks.splice(i, 1);
+    }
+    for (i = state.floats.length - 1; i >= 0; i--) {
+      c = state.floats[i];
+      c.t += dt; c.y -= 26 * dt;
+      if (c.t >= 1.6) state.floats.splice(i, 1);
+    }
+    if (state.celebrating) {
+      state.celebTimer += dt;
+      if (state.celebTimer > 0.32) {
+        state.celebTimer = 0;
+        var tp = pathPoint(1);
+        spawnConfetti(tp.x, tp.y - 10, 22);
+        spawnConfetti(Math.random() * W, -20, 10);
+      }
+    }
+  }
+  function drawParticles() {
+    var i, c, alpha;
+    for (i = 0; i < state.sparks.length; i++) {
+      c = state.sparks[i];
+      var k = c.t / c.life;
+      var dist = c.sp * (1 - Math.pow(1 - k, 2.2));
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#ffe9b0';
+      ctx.shadowColor = 'rgba(255,220,130,0.9)'; ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(c.x + Math.cos(c.a) * dist, c.y + Math.sin(c.a) * dist, 3.2 * (1 - k * 0.5), 0, 7);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+    for (i = 0; i < state.confetti.length; i++) {
+      c = state.confetti[i];
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.globalAlpha = Math.max(0, Math.min(1, c.life / 40));
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.size / 2, -c.size / 4, c.size, c.size / 2);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    for (i = 0; i < state.floats.length; i++) {
+      c = state.floats[i];
+      alpha = c.t < 0.2 ? c.t / 0.2 : 1 - (c.t - 0.2) / 1.4;
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.fillStyle = c.color;
+      ctx.font = '800 21px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 8;
+      ctx.fillText(c.text, c.x, c.y);
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ================= 主循环 ================= */
+  function update(dt) {
+    var target = state.p === 0 ? 0 : (state.p >= CONFIG.total ? 1 : nodeT(state.p));
+    var diff = target - state.t;
+    state.moving = Math.abs(diff) > 0.0006;
+    if (state.moving) {
+      var step = dt / CONFIG.duration / CONFIG.total;
+      state.t = diff > 0 ? Math.min(target, state.t + step) : Math.max(target, state.t - step);
+    }
+    if (state.p >= CONFIG.total && !state.celebrating && state.t >= 0.999) startCelebration();
+    state.wrongFlash = Math.max(0, state.wrongFlash - dt * 1.4);
+    state.bubble = Math.max(0, state.bubble - dt);
+    updateParticles(dt);
+  }
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000 || 0.016);
+    last = now;
+    state.time = now / 1000;
+    update(dt);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    drawBg(now);
+    drawPath(now);
+    drawStartSign();
+    drawNodes(now);
+    drawTreasure(now);
+    drawKid(now);
+    drawBubble(now);
+    drawFog(now);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(fogCv, 0, 0);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    drawFireflies(now);
+    drawParticles();
+    requestAnimationFrame(frame);
+  }
+
+  /* ================= 逻辑：答题 / 进度 ================= */
+  var celeb = document.getElementById('celeb');
+  function startCelebration() {
+    state.celebrating = true;
+    state.celebTimer = 0;
+    updateHUD();
+    postProgress();
+    setTimeout(function () {
+      celeb.hidden = false;
+      requestAnimationFrame(function () { celeb.classList.add('show'); });
+    }, 1000);
+    if (CONFIG.mode === 'embed') {
+      setTimeout(function () {
+        celeb.classList.remove('show');
+        setTimeout(function () { celeb.hidden = true; }, 650);
+      }, 5200);
+    }
+  }
+
+  function getState() {
+    return { progress: state.p, total: CONFIG.total, complete: state.p >= CONFIG.total };
+  }
+
+  function postProgress() {
+    var info = getState();
+    try {
+      parent.postMessage({ source: 'knowledge-treasure', type: 'progress', progress: info.progress, total: info.total, complete: info.complete }, '*');
+    } catch (e) {}
+    if (KT.onProgress) KT.onProgress(info);
+    if (info.complete && KT.onComplete) KT.onComplete(info);
+  }
+
+  function answer(correct) {
+    if (state.celebrating || state.p >= CONFIG.total) return getState();
+    if (correct) {
+      state.p++;
+      var pos = pathPoint(nodeT(state.p));
+      spawnSparks(pos.x, pos.y - 40);
+      state.floats.push({ x: pos.x, y: pos.y - 96, text: '+1 迷雾散开！', color: '#ffd166', t: 0 });
+      updateHUD();
+      postProgress();
+    } else {
+      state.wrongFlash = 1;
+      state.bubble = 2.2;
+    }
+    return getState();
+  }
+
+  function reset() {
+    state.p = 0;
+    state.celebrating = false;
+    state.celebTimer = 0;
+    state.confetti.length = 0;
+    state.sparks.length = 0;
+    state.floats.length = 0;
+    state.t = 0;
+    state.wrongFlash = 0;
+    state.bubble = 0;
+    celeb.classList.remove('show');
+    celeb.hidden = true;
+    updateHUD();
+    postProgress();
+  }
+
+  function setProgress(n) {
+    var v = Math.max(0, Math.min(CONFIG.total, Math.round(n)));
+    state.p = v;
+    updateHUD();
+    postProgress();
+  }
+
+  function setTotal(n) {
+    CONFIG.total = clampInt(n, 3, 12, 6);
+    state.p = Math.min(state.p, CONFIG.total);
+    buildSegs();
+    updateHUD();
+    postProgress();
+  }
+
+  /* ================= HUD ================= */
+  var progText = document.getElementById('progText');
+  var segsEl = document.getElementById('segs');
+  var qText = document.getElementById('qText');
+  function buildSegs() {
+    segsEl.innerHTML = '';
+    for (var i = 0; i < CONFIG.total; i++) {
+      var s = document.createElement('i');
+      segsEl.appendChild(s);
+    }
+  }
+  function updateHUD() {
+    progText.textContent = state.p + '/' + CONFIG.total;
+    var segs = segsEl.children;
+    for (var i = 0; i < segs.length; i++) segs[i].classList.toggle('on', i < state.p);
+    qText.textContent = state.p >= CONFIG.total ? '通关！' : '第 ' + (state.p + 1) + ' 题';
+  }
+
+  /* ================= API 与事件 ================= */
+  var KT = { onProgress: null, onComplete: null };
+  window.KnowledgeTreasure = {
+    init: function (opts) {
+      opts = opts || {};
+      if (opts.total) setTotal(opts.total);
+      if (typeof opts.onProgress === 'function') KT.onProgress = opts.onProgress;
+      if (typeof opts.onComplete === 'function') KT.onComplete = opts.onComplete;
+      postProgress();
+      return getState();
+    },
+    answer: answer,
+    reset: reset,
+    setProgress: setProgress,
+    getState: getState
+  };
+
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.target !== 'knowledge-treasure') return;
+    if (d.type === 'answer') answer(!!d.correct);
+    else if (d.type === 'reset') reset();
+    else if (d.type === 'setProgress') setProgress(d.value);
+  });
+
+  /* ===== 演示控制 ===== */
+  var wrap = document.getElementById('wrap');
+  if (CONFIG.mode === 'embed') wrap.classList.add('embed');
+  document.getElementById('btnRight').addEventListener('click', function () { answer(true); });
+  document.getElementById('btnWrong').addEventListener('click', function () { answer(false); });
+  document.getElementById('btnReset').addEventListener('click', reset);
+  document.getElementById('btnAgain').addEventListener('click', reset);
+  document.getElementById('btnDoc').addEventListener('click', function () {
+    document.getElementById('docModal').hidden = false;
+  });
+  document.getElementById('btnDocClose').addEventListener('click', function () {
+    document.getElementById('docModal').hidden = true;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (CONFIG.mode !== 'demo') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.code === 'Space') { e.preventDefault(); answer(true); }
+    else if (e.key === 'x' || e.key === 'X') answer(false);
+    else if (e.key === 'r' || e.key === 'R') reset();
+  });
+
+  buildSegs();
+  updateHUD();
+  requestAnimationFrame(function (t) { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 讲题 Demo · 引导式</title>
+<script>
+  window.MathJax = { tex: { inlineMath: [['$', '$']] }, svg: { fontCache: 'global' } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --ink: #102532; --ink-2: #203a47; --paper: #f7f8f4; --white: #fff;
+    --line: #d9dfdc; --muted: #687980; --teal: #0c8f82; --teal-soft: #d8f0eb;
+    --blue: #3478c9; --blue-soft: #e2eefb; --coral: #e8674f; --coral-soft: #fae6e0;
+    --yellow: #e9b949; --yellow-soft: #fbf0d2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--ink); background: var(--paper); font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; line-height: 1.7; }
+  header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 20px; background: var(--ink); color: #eaf3f0; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; color: #fff; }
+  header .cfg { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+  header input, header select { padding: 6px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: rgba(255,255,255,.08); color: #fff; font-size: 12px; }
+  header input::placeholder { color: #9fb5b7; }
+  header label { font-size: 12px; color: #9fb5b7; }
+  main { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 0; height: calc(100vh - 60px); }
+  main.has-visual { grid-template-columns: 400px minmax(0, 1fr) minmax(460px, 1.1fr); }
+  .visual-panel { display: none; position: relative; min-height: 0; background: #101d27; }
+  main.has-visual .visual-panel { display: block; }
+  .visual-panel .visual-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; background: rgba(16,37,50,.92); color: #d8e6e2; font-size: 12px; }
+  .visual-panel .visual-bar button { padding: 4px 12px; border: 0; border-radius: 6px; background: rgba(255,255,255,.16); color: #fff; font-size: 12px; cursor: pointer; }
+  .visual-panel iframe { width: 100%; height: 100%; border: none; display: block; }
+  .visual-panel.fullscreen { position: fixed; inset: 0; z-index: 200; }
+  @media (max-width: 900px) { main, main.has-visual { grid-template-columns: 1fr; height: auto; } .visual-panel { height: 58vh; } }
+
+  .panel { overflow-y: auto; padding: 18px; }
+  .left { border-right: 1px solid var(--line); background: var(--white); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .tab { padding: 7px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--white); color: var(--muted); cursor: pointer; font-size: 13px; }
+  .tab.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .q-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chip { padding: 2px 9px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .chip.subj { background: var(--teal-soft); color: var(--teal); }
+  .chip.type { background: var(--blue-soft); color: var(--blue); }
+  .chip.diff { background: var(--yellow-soft); color: #8a6d1d; }
+  .q-title { font-size: 14px; color: var(--ink-2); background: var(--paper); padding: 12px; border-radius: 8px; border: 1px solid var(--line); white-space: pre-wrap; }
+  .q-title p { margin: 0 0 8px; }
+  .field { margin-top: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  .field textarea { width: 100%; min-height: 70px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; font: 13px/1.6 inherit; resize: vertical; }
+  .field .grading { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .field .grading input { padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+  .badge-correct { color: var(--teal); font-weight: 600; }
+  .badge-wrong { color: var(--coral); font-weight: 600; }
+
+  .chat { display: flex; flex-direction: column; background: var(--paper); }
+  .chat-scroll { flex: 1; overflow-y: auto; padding: 18px; }
+  .msg { max-width: 78%; margin-bottom: 14px; padding: 11px 14px; border-radius: 12px; font-size: 14px; white-space: pre-wrap; }
+  .msg.teacher { background: var(--white); border: 1px solid var(--line); }
+  .msg.teacher::before { content: "老师"; display: block; font-size: 11px; font-weight: 700; color: var(--teal); margin-bottom: 3px; }
+  .msg.student { margin-left: auto; background: var(--teal); color: #fff; }
+  .msg.student::before { content: "学生"; display: block; font-size: 11px; font-weight: 700; color: #cdeee8; margin-bottom: 3px; }
+  .msg.sys { max-width: 100%; background: var(--yellow-soft); border-left: 4px solid var(--yellow); color: var(--ink-2); font-size: 12px; }
+  .chat-input { display: flex; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--line); background: var(--white); }
+  .chat-input textarea { flex: 1; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: 14px/1.6 inherit; resize: none; }
+  .chat-input button { padding: 0 18px; border: 0; border-radius: 10px; background: var(--coral); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .chat-input button:disabled { opacity: .5; cursor: not-allowed; }
+  .start-hint { text-align: center; color: var(--muted); margin-top: 40px; font-size: 13px; }
+  .start-hint button { margin-top: 10px; padding: 10px 22px; border: 0; border-radius: 10px; background: var(--teal); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .error { color: var(--coral); }
+  .typing { color: var(--muted); font-size: 13px; }
+  .formula-modal { position: fixed; inset: 0; background: rgba(16,37,50,.5); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .formula-modal.open { display: flex; }
+  .formula-box { background: #fff; border-radius: 12px; padding: 16px; width: min(560px, 92vw); box-shadow: 0 16px 40px rgba(16,37,50,.25); }
+  .formula-box math-field { width: 100%; min-height: 60px; font-size: 20px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .formula-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .formula-actions button { padding: 8px 16px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .formula-actions .ok { background: var(--teal); color: #fff; }
+  .formula-actions .cancel { background: var(--paper); color: var(--ink-2); border: 1px solid var(--line); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mathlive/mathlive.min.js"></script>
+<script>
+  if (window.MathfieldElement) MathfieldElement.fontsDirectory = 'https://cdn.jsdelivr.net/npm/mathlive/fonts';
+</script>
+</head>
+<body>
+<header>
+  <h1>AI 讲题 Demo · 引导式（不直接给答案）</h1>
+  <div class="cfg">
+    <label>Key</label>
+    <input id="apiKey" type="password" placeholder="DeepSeek API Key" style="width:220px">
+    <label>Base</label>
+    <input id="baseUrl" value="https://api.deepseek.com" style="width:190px">
+    <label>模型</label>
+    <select id="model">
+      <option value="deepseek-chat">deepseek-chat（纯文本）</option>
+      <option value="deepseek-flash">deepseek-flash（看图兜底）</option>
+      <option value="deepseek-reasoner">deepseek-reasoner</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#9fb5b7;cursor:pointer;">
+      <input type="checkbox" id="debugMode" style="width:auto;"> 调试
+    </label>
+  </div>
+</header>
+
+<main>
+  <aside class="panel left">
+    <div class="tabs" id="tabs"></div>
+    <div class="q-head">
+      <span class="chip subj" id="q-subj"></span>
+      <span class="chip type" id="q-type"></span>
+      <span class="chip diff" id="q-diff"></span>
+      <span id="q-score" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div class="q-title" id="q-title"></div>
+    <div class="field">
+      <label>内容识别 contentRecognition（学生手写识别文本）</label>
+      <textarea id="contentRecognition"></textarea>
+    </div>
+    <div class="field">
+      <label>评分理由 reasoning（错在哪 / 为什么扣分）</label>
+      <textarea id="reasoning"></textarea>
+    </div>
+    <div class="field">
+      <label>得分 score</label>
+      <input id="score" placeholder="如 7" style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;">
+    </div>
+    <div class="field">
+      <label>手写图片 URL（兜底：识别文本为空时看图，需切 deepseek-flash）</label>
+      <input id="studentImage" placeholder="https://van-course.oss-ap-southeast-1.aliyuncs.com/questions/xxx.png" style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;">
+      <img id="studentImagePreview" style="display:none;margin-top:8px;max-width:100%;border:1px solid var(--line);border-radius:8px;" alt="手写预览">
+    </div>
+    <div class="field">
+      <label>知识点</label>
+      <div id="q-know" style="font-size:13px;color:var(--ink-2)"></div>
+    </div>
+    <div class="field">
+      <label>我的笔记（手写）</label>
+      <canvas id="noteCanvas" style="width:100%;height:160px;border:1px solid var(--line);border-radius:8px;background:#fff;touch-action:none;display:block;cursor:crosshair;"></canvas>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button type="button" onclick="noteClear()" style="padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink-2);font-size:12px;cursor:pointer;">清空</button>
+        <button type="button" onclick="noteUndo()" style="padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink-2);font-size:12px;cursor:pointer;">撤销</button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted)">注：标准答案/解析/思路引导会作为「备课材料」传给模型，但被约束不得原样输出给学生。</p>
+  </aside>
+
+  <section class="chat">
+    <div id="treasureWrap" style="display:none;border-bottom:1px solid var(--line);background:#0b1030;padding:4px 0;">
+      <iframe id="treasureFrame" src="treasure.html?mode=embed&total=3" style="width:100%;height:250px;border:0;display:block;"></iframe>
+    </div>
+    <div id="stageBar" style="display:none;padding:22px 20px 14px;border-bottom:1px solid var(--line);background:var(--white);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:700;color:var(--ink);">学习进度</div>
+        <div id="stageLabel" style="font-size:12px;font-weight:700;color:#888780;">困惑</div>
+      </div>
+      <div id="stageTrack" style="position:relative;height:12px;background:#EDEDED;border-radius:6px;margin:0 21px;">
+        <div id="stageFill" style="height:100%;width:0;background:#4AA99E;border-radius:6px;transition:width .4s;"></div>
+        <div id="stageDot" style="position:absolute;top:-15px;left:0;transition:left .4s;">
+          <img id="stageImg" src="afan-1.png" alt="我" style="width:42px;height:42px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 3px #888780;object-fit:cover;display:block;">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin:8px 21px 0;">
+        <span data-stage-label="困惑" style="font-size:10px;color:var(--muted);">困惑</span>
+        <span data-stage-label="有思路" style="font-size:10px;color:var(--muted);">有思路</span>
+        <span data-stage-label="跟做" style="font-size:10px;color:var(--muted);">跟做</span>
+        <span data-stage-label="会做" style="font-size:10px;color:var(--muted);">会做</span>
+        <span data-stage-label="熟练" style="font-size:10px;color:var(--muted);">熟练</span>
+      </div>
+    </div>
+    <div class="chat-scroll" id="chat"></div>
+    <div class="start-hint" id="hint">
+      <p>选好题目、确认学生作答与批题结果后，点击开始；或点「演示」自动播放完整流程（无需 API Key）。</p>
+      <button id="startBtn">开始引导式讲题</button>
+      <button id="demoBtn" style="margin-top:10px;padding:10px 22px;border:0;border-radius:10px;background:var(--coral);color:#fff;font-size:14px;font-weight:600;cursor:pointer;">▶ 演示完整流程</button>
+    </div>
+    <div class="chat-input">
+      <textarea id="input" placeholder="以学生身份回复老师，例如：我在第 2 步卡住了…"></textarea>
+      <button id="formulaBtn" type="button" title="插入数学公式">公式</button>
+      <button id="hwBtn" type="button" title="手写输入式子">手写</button>
+      <button id="voiceBtn" type="button" title="语音输入">语音</button>
+      <button id="sendBtn" disabled>发送</button>
+    </div>
+  </section>
+
+  <section class="visual-panel" id="visualPanel">
+    <div class="visual-bar">
+      <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+        <span id="visualBarTitle">图形可视化 · 拖动探索</span>
+        <span id="visualHighlightLabel" style="font-size:11px;color:#8fb3ad;">当前高亮：—</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <span id="visualStepControls" style="display:flex;align-items:center;gap:6px;">
+          <button onclick="visualStep(-1)">上一步</button>
+          <span id="visualStepLabel" style="min-width:46px;text-align:center;font-weight:600;">…</span>
+          <button onclick="visualStep(1)">下一步</button>
+        </span>
+        <button id="visualZoomBtn" onclick="toggleVisualFullscreen()">放大</button>
+      </div>
+    </div>
+    <div id="mindMapContainer" style="display:none;position:absolute;inset:0;overflow:auto;background:#fff;"></div>
+    <iframe id="visualFrame" src="" title="图形可视化"></iframe>
+  </section>
+</main>
+
+<div class="formula-modal" id="formulaModal">
+  <div class="formula-box">
+    <p style="margin:0 0 10px;font-size:13px;color:var(--muted)">点击输入框后用虚拟键盘选符号拼公式，或直接键入 LaTeX；「插入」后以 $…$ 形式插入回复。</p>
+    <math-field id="formulaField" virtual-keyboard-mode="onfocus"></math-field>
+    <div class="formula-actions">
+      <button class="cancel" onclick="closeFormula()">取消</button>
+      <button class="ok" onclick="insertFormula()">插入公式</button>
+    </div>
+  </div>
+</div>
+
+<div class="formula-modal" id="handwritingModal">
+  <div class="formula-box" style="width:min(620px,94vw)">
+    <p style="margin:0 0 10px;font-size:13px;color:var(--muted)">手写一个数学式子（鼠标 / 手指 / 手写笔均可），点「识别」</p>
+    <canvas id="hwCanvas" style="width:100%;height:240px;border:1px solid var(--line);border-radius:8px;background:#fff;touch-action:none;display:block;cursor:crosshair;"></canvas>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="cancel" onclick="hwClear()">清空</button>
+      <button class="cancel" onclick="hwUndo()">撤销</button>
+      <button class="ok" id="hwRecognizeBtn" onclick="hwRecognize()">识别</button>
+    </div>
+    <div id="hwResult" style="margin-top:12px;display:none;">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">识别结果（点进去可直接修改）：</div>
+      <math-field id="hwEditField" virtual-keyboard-mode="onfocus"></math-field>
+      <div class="formula-actions">
+        <button class="cancel" onclick="hwRedo()">重新手写</button>
+        <button class="ok" onclick="hwConfirm()">确认插入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="questions.js"></script>
+<script>
+  const QS = window.QUESTIONS;
+  let current = QS[0];
+  let history = [];   // 多轮对话历史（不含首轮上下文，上下文由后端重建）
+  let diagnosis = null;  // 诊断结果（首轮诊断一次，多轮复用）
+  let started = false;
+  let coverMode = false;  // 文科得分点节点图模式（文科用节点图替代线性条）
+
+  const $ = (id) => document.getElementById(id);
+  const keyInput = $('apiKey'), baseInput = $('baseUrl'), modelSel = $('model');
+
+  // 记忆 key
+  const savedKey = localStorage.getItem('djsk');
+  if (savedKey) keyInput.value = savedKey;
+  keyInput.addEventListener('change', () => localStorage.setItem('djsk', keyInput.value.trim()));
+
+  // 渲染题目 tab
+  const tabsEl = $('tabs');
+  QS.forEach((q, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (i === 0 ? ' active' : '');
+    b.textContent = q.subject_name + ' · ' + q.type.split(' · ')[0];
+    b.onclick = () => selectQuestion(i);
+    tabsEl.appendChild(b);
+  });
+
+  function selectQuestion(i) {
+    current = QS[i];
+    history = []; diagnosis = null; currentEntry = ''; currentKeys = []; started = false;
+    $('chat').innerHTML = '';
+    $('hint').style.display = '';
+    $('sendBtn').disabled = true;
+    [...tabsEl.children].forEach((t, j) => t.classList.toggle('active', j === i));
+    renderQuestion();
+    $('stageBar').style.display = 'none';
+    hideCoverMap();
+    resetTreasure();
+  }
+
+  function visualStep(delta) {
+    const frame = $('visualFrame');
+    if (!frame.src) return;
+    try {
+      const win = frame.contentWindow;
+      if (!win || !win.goToStep) return;
+      const total = (win.getStepCount && win.getStepCount()) || 1;
+      const cur = (win.getCurrentStep && win.getCurrentStep()) || 0;
+      const next = Math.max(0, Math.min(cur + delta, total - 1));
+      win.goToStep(next);
+      syncVisualStepLabel();
+    } catch (e) {}
+  }
+  function syncVisualStepLabel() {
+    const frame = $('visualFrame');
+    const label = $('visualStepLabel');
+    if (!label) return;
+    try {
+      const win = frame.contentWindow;
+      if (win && win.getStepCount) {
+        const total = win.getStepCount();
+        const cur = (win.getCurrentStep ? win.getCurrentStep() : 0);
+        label.textContent = (cur + 1) + ' / ' + total;
+      }
+      const hl = $('visualHighlightLabel');
+      if (hl && win && win.getCurrentHighlight) {
+        const names = win.getCurrentHighlight();
+        hl.textContent = names.length ? ('当前高亮：' + names.join('、')) : '当前高亮：—';
+      }
+    } catch (e) {}
+  }
+  function toggleVisualFullscreen() {
+    const p = $('visualPanel');
+    const full = p.classList.toggle('fullscreen');
+    $('visualZoomBtn').textContent = full ? '还原' : '放大';
+  }
+
+  // ---- 自由笔记（手写板，每道题独立，localStorage 存图片）----
+  let noteStrokes = [];
+  let noteCurrent = null;
+
+  function noteInitCanvas() {
+    const c = $('noteCanvas');
+    const rect = c.getBoundingClientRect();
+    c.width = rect.width || 300;
+    c.height = 160;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#102532';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+  function noteRedraw() {
+    const c = $('noteCanvas');
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#102532';
+    noteStrokes.forEach(stroke => {
+      ctx.beginPath();
+      stroke.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+    });
+  }
+  function noteClear() { noteStrokes = []; noteCurrent = null; noteInitCanvas(); saveNote(); }
+  function noteUndo() { noteStrokes.pop(); noteCurrent = null; noteRedraw(); saveNote(); }
+
+  function noteBindCanvas() {
+    const c = $('noteCanvas');
+    const getPos = (e) => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    c.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); c.setPointerCapture(e.pointerId);
+      noteCurrent = [getPos(e)];
+      const ctx = c.getContext('2d');
+      ctx.beginPath(); ctx.moveTo(noteCurrent[0].x, noteCurrent[0].y);
+    });
+    c.addEventListener('pointermove', (e) => {
+      if (!noteCurrent) return;
+      const p = getPos(e);
+      const prev = noteCurrent[noteCurrent.length - 1];
+      noteCurrent.push(p);
+      const ctx = c.getContext('2d');
+      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    });
+    c.addEventListener('pointerup', () => {
+      if (noteCurrent && noteCurrent.length) { noteStrokes.push(noteCurrent); saveNote(); }
+      noteCurrent = null;
+    });
+  }
+
+  function saveNote() {
+    try { localStorage.setItem('noteimg-' + current.id, $('noteCanvas').toDataURL('image/png')); } catch (e) {}
+  }
+  function loadNote() {
+    const url = localStorage.getItem('noteimg-' + current.id);
+    noteStrokes = [];
+    noteInitCanvas();
+    if (url) {
+      const img = new Image();
+      img.onload = () => { const c = $('noteCanvas'); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); };
+      img.src = url;
+    }
+  }
+  noteBindCanvas();
+
+  // 可视化类型映射：步骤式（有上一步/下一步）vs 参数式（拖动滑块）vs 思维导图（文科）
+  const VISUALS = {
+    'solid-geometry': { file: 'edulab-cube.html', steps: true, title: '3D 可视化 · 拖动旋转 · 翻步骤探索' },
+    'analytic-geometry': { file: 'edulab-ellipse.html', steps: false, title: '2D 动态图 · 拖动滑块探索' },
+    'mind-map': { kind: 'mindmap', steps: false, title: '得分点思维导图 · 补对一个点亮一个' },
+  };
+
+  // 文科各题的预设得分点（切题即显示；点开始后诊断会覆盖为真实 dimensions）
+  const DEMO_DIMS = {
+    '17045': [
+      { name: '进步意义', score: '3', status: '已踩到' },
+      { name: '历史局限', score: '1', status: '未踩到' },
+      { name: '背景与总评', score: '2', status: '部分踩到' },
+      { name: '逻辑与材料结合', score: '1', status: '已踩到' },
+    ],
+    '9005851': [
+      { name: '认知误区', score: '1', status: '未踩到' },
+      { name: '价值重构', score: '1', status: '已踩到' },
+      { name: '精神逍遥', score: '1', status: '未踩到' },
+    ],
+  };
+
+  function renderQuestion() {
+    $('q-subj').textContent = current.subject_name;
+    $('q-type').textContent = current.type;
+    $('q-diff').textContent = '难度 ' + current.difficulty;
+    $('q-score').textContent = '满分 ' + current.full_score + ' 分';
+    $('q-title').innerHTML = '<p>' + current.title.replace(/\n/g, '<br>') + '</p>';
+    $('q-know').textContent = current.knowledge_points;
+    const vp = $('visualPanel');
+    vp.classList.remove('fullscreen');
+    if ($('visualZoomBtn')) $('visualZoomBtn').textContent = '放大';
+    const vis = current.visual ? VISUALS[current.visual] : null;
+    if (vis) {
+      document.querySelector('main').classList.add('has-visual');
+      if (vis.kind === 'mindmap') {
+        // 文科思维导图：不加载 iframe；切题即用预设得分点渲染，点开始后诊断会更新
+        $('visualFrame').style.display = 'none';
+        const preset = DEMO_DIMS[current.id];
+        if (preset) {
+          renderCoverMap(preset);
+        } else {
+          $('mindMapContainer').style.display = 'none';
+          $('mindMapContainer').innerHTML = '';
+        }
+      } else {
+        $('visualFrame').style.display = '';
+        $('mindMapContainer').style.display = 'none';
+        $('visualFrame').src = vis.file;
+      }
+      const sc = $('visualStepControls');
+      if (sc) sc.style.display = vis.steps ? 'flex' : 'none';
+      if ($('visualHighlightLabel')) $('visualHighlightLabel').style.display = vis.steps ? '' : 'none';
+      if ($('visualBarTitle')) $('visualBarTitle').textContent = vis.title;
+    } else {
+      document.querySelector('main').classList.remove('has-visual');
+      $('visualFrame').src = '';
+      $('mindMapContainer').style.display = 'none';
+    }
+    $('contentRecognition').value = current.demo.content_recognition || '';
+    $('reasoning').value = current.demo.reasoning || '';
+    $('score').value = current.demo.score || '';
+    typeset();
+    loadNote();
+  }
+
+  function typeset() {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise().catch(() => {});
+    }
+  }
+
+  function addMsg(role, text) {
+    if (role === 'avatar') {
+      const d = document.createElement('div');
+      d.style.cssText = 'text-align:center;padding:14px;margin-bottom:14px;';
+      d.innerHTML = '<img src="afan-4.png" style="width:80px;height:80px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 3px var(--coral);"><div style="font-size:11px;color:var(--muted);margin-top:6px;">数字人老师（demo 占位 · 正式版为 3D 数字人 + 口型同步）</div><div style="font-size:13px;color:var(--ink);margin-top:2px;">' + text + '</div>';
+      $('chat').appendChild(d);
+      $('chat').scrollTop = $('chat').scrollHeight;
+      return d;
+    }
+    const d = document.createElement('div');
+    d.className = 'msg ' + role;
+    d.innerHTML = text.replace(/\n/g, '<br>');
+    $('chat').appendChild(d);
+    $('chat').scrollTop = $('chat').scrollHeight;
+    typeset();
+    return d;
+  }
+
+  function addSys(text) {
+    const d = document.createElement('div');
+    d.className = 'msg sys';
+    d.textContent = text;
+    $('chat').appendChild(d);
+    $('chat').scrollTop = $('chat').scrollHeight;
+  }
+
+  async function sendTurn(studentSays) {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) { addSys('⚠ 请先在顶部填入 DeepSeek API Key'); return; }
+    if (studentSays) { history.push({ role: 'user', content: studentSays }); addMsg('student', studentSays); }
+    const typing = addMsg('teacher', '…');
+    typing.classList.add('typing');
+    $('sendBtn').disabled = true;
+    try {
+      const resp = await fetch('/api/tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey, baseUrl: baseInput.value.trim() || 'https://api.deepseek.com',
+          model: modelSel.value,
+          subjectCode: current.subject_code,
+          problem: current,
+          contentRecognition: $('contentRecognition').value.trim(),
+          reasoning: $('reasoning').value.trim(),
+          score: $('score').value.trim(),
+          diagnosis: diagnosis,
+          studentAnswerImage: $('studentImage').value.trim() || undefined,
+          history,
+        }),
+      });
+      const json = await resp.json();
+      typing.remove();
+      if (json.error) { addMsg('teacher', '错误：' + json.error); return; }
+      const label = ($('debugMode').checked && json.hint_level) ? '[' + json.hint_level + '] ' : '';
+      addMsg('teacher', label + json.reply);
+      if (json.stage) {
+        const st = String(json.stage).trim();
+        updateStage(st);
+        if (st === '会做') lightAllCover();
+      }
+      if (json.hit) lightNode(json.hit - 1);
+      history.push({ role: 'assistant', content: json.reply });
+    } catch (e) {
+      typing.remove();
+      addMsg('teacher', '请求失败：' + e.message);
+    } finally {
+      $('sendBtn').disabled = false;
+    }
+  }
+
+  $('startBtn').onclick = async () => {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) { addSys('⚠ 请先在顶部填入 DeepSeek API Key'); return; }
+    if (!started) { started = true; $('hint').style.display = 'none'; }
+    diagnosis = null;
+    if ($('debugMode').checked) addSys('诊断中…');
+    try {
+      const resp = await fetch('/api/diagnose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey, baseUrl: baseInput.value.trim() || 'https://api.deepseek.com', model: modelSel.value,
+          problem: current,
+          contentRecognition: $('contentRecognition').value.trim(),
+          reasoning: $('reasoning').value.trim(),
+          score: $('score').value.trim(),
+        }),
+      });
+      const json = await resp.json();
+      if (json.error) { addSys('诊断失败：' + json.error); return; }
+      diagnosis = json.diagnosis;
+      try {
+        const diag = JSON.parse(json.diagnosis);
+        if (Array.isArray(diag.dimensions)) {
+          renderCoverMap(diag.dimensions);  // 文科：渲染得分点节点图
+        } else {
+          hideCoverMap();
+        }
+      } catch (e) { hideCoverMap(); }
+      updateStage('有思路');
+      if ($('debugMode').checked) {
+        let display = json.diagnosis;
+        try { display = JSON.stringify(JSON.parse(json.diagnosis), null, 2); } catch (e) {}
+        addSys('诊断结果：\n' + display);
+      }
+    } catch (e) {
+      addSys('诊断请求失败：' + e.message);
+      return;
+    }
+    sendTurn('');
+  };
+  $('sendBtn').onclick = () => {
+    const v = $('input').value.trim();
+    if (!v) return;
+    $('input').value = '';
+    if (!started) { started = true; $('hint').style.display = 'none'; }
+    sendTurn(v);
+  };
+  $('input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('sendBtn').click(); }
+  });
+
+  // ---- 公式编辑器 ----
+  function openFormula() {
+    $('formulaModal').classList.add('open');
+    const mf = $('formulaField');
+    mf.value = '';
+    setTimeout(() => mf.focus(), 60);
+  }
+  function closeFormula() { $('formulaModal').classList.remove('open'); }
+  function insertFormula() {
+    const latex = ($('formulaField').value || '').trim();
+    if (latex) {
+      const ta = $('input');
+      const st = ta.selectionStart || 0, en = ta.selectionEnd || 0;
+      const text = '$' + latex + '$';
+      ta.value = ta.value.slice(0, st) + text + ta.value.slice(en);
+      ta.selectionStart = ta.selectionEnd = st + text.length;
+      ta.focus();
+    }
+    closeFormula();
+  }
+  $('formulaBtn').onclick = openFormula;
+
+  $('studentImage').addEventListener('input', () => {
+    const url = $('studentImage').value.trim();
+    const img = $('studentImagePreview');
+    if (url) { img.src = url; img.style.display = 'block'; } else { img.style.display = 'none'; }
+  });
+
+  // ---- 手写板 ----
+  let hwStrokes = [];
+  let hwCurrent = null;
+  let hwCurrentLatex = '';
+
+  function hwInitCanvas() {
+    const c = $('hwCanvas');
+    const rect = c.getBoundingClientRect();
+    c.width = rect.width || 500;
+    c.height = 240;
+    const ctx = c.getContext('2d');
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#102532';
+  }
+  function hwRedraw() {
+    const c = $('hwCanvas');
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = '#102532';
+    hwStrokes.forEach(stroke => {
+      ctx.beginPath();
+      stroke.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+    });
+  }
+  function hwOpen() {
+    $('handwritingModal').classList.add('open');
+    hwStrokes = []; hwCurrent = null; hwCurrentLatex = '';
+    $('hwResult').style.display = 'none';
+    hwInitCanvas();
+  }
+  function hwClose() { $('handwritingModal').classList.remove('open'); }
+  function hwClear() { hwStrokes = []; hwCurrent = null; hwCurrentLatex = ''; $('hwResult').style.display = 'none'; hwInitCanvas(); }
+  function hwUndo() { hwStrokes.pop(); hwCurrent = null; hwRedraw(); }
+
+  function hwBindCanvas() {
+    const c = $('hwCanvas');
+    const getPos = (e) => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    c.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); c.setPointerCapture(e.pointerId);
+      hwCurrent = [getPos(e)];
+      const ctx = c.getContext('2d');
+      ctx.beginPath(); ctx.moveTo(hwCurrent[0].x, hwCurrent[0].y);
+    });
+    c.addEventListener('pointermove', (e) => {
+      if (!hwCurrent) return;
+      const p = getPos(e);
+      const prev = hwCurrent[hwCurrent.length - 1];
+      hwCurrent.push(p);
+      const ctx = c.getContext('2d');
+      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    });
+    c.addEventListener('pointerup', () => {
+      if (hwCurrent && hwCurrent.length) hwStrokes.push(hwCurrent);
+      hwCurrent = null;
+    });
+  }
+
+  async function hwRecognize() {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) { alert('请先填 API Key'); return; }
+    if (!hwStrokes.length) { alert('请先手写内容'); return; }
+    const base64 = $('hwCanvas').toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+    const btn = $('hwRecognizeBtn');
+    btn.disabled = true; btn.textContent = '识别中…';
+    try {
+      const resp = await fetch('/api/ocr', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey, baseUrl: baseInput.value.trim() || 'https://api.deepseek.com', model: 'deepseek-flash',
+          imageBase64: base64,
+        }),
+      });
+      const json = await resp.json();
+      if (json.error) { alert('识别失败：' + json.error); return; }
+      hwCurrentLatex = json.latex;
+      $('hwEditField').value = json.latex;
+      $('hwResult').style.display = 'block';
+    } catch (e) {
+      alert('识别请求失败：' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '识别';
+    }
+  }
+
+  function hwConfirm() {
+    const latex = ($('hwEditField').value || '').trim();
+    if (latex) {
+      const ta = $('input');
+      const st = ta.selectionStart || 0, en = ta.selectionEnd || 0;
+      const text = '$' + latex + '$';
+      ta.value = ta.value.slice(0, st) + text + ta.value.slice(en);
+      ta.selectionStart = ta.selectionEnd = st + text.length;
+      ta.focus();
+    }
+    hwClose();
+  }
+  function hwRedo() { hwStrokes = []; hwCurrentLatex = ''; $('hwResult').style.display = 'none'; $('hwEditField').value = ''; hwInitCanvas(); }
+
+  $('hwBtn').onclick = hwOpen;
+  hwBindCanvas();
+
+  // ---- 语音输入 ----
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let voiceRec = null;
+  let voiceOn = false;
+  if (SpeechRec) {
+    voiceRec = new SpeechRec();
+    voiceRec.lang = 'zh-CN';
+    voiceRec.interimResults = false;
+    voiceRec.continuous = false;
+    voiceRec.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      const ta = $('input');
+      ta.value = ta.value ? ta.value + text : text;
+      ta.focus();
+    };
+    voiceRec.onend = () => { voiceOn = false; $('voiceBtn').style.background = ''; };
+    voiceRec.onerror = () => { voiceOn = false; $('voiceBtn').style.background = ''; };
+  }
+  $('voiceBtn').onclick = () => {
+    if (!voiceRec) { alert('当前浏览器不支持语音识别，请用 Chrome / Edge'); return; }
+    if (voiceOn) { voiceRec.stop(); return; }
+    voiceOn = true;
+    $('voiceBtn').style.background = 'var(--coral)';
+    voiceRec.start();
+  };
+
+  // ---- 学习进度（成长条）----
+  const STAGES = ['困惑', '有思路', '跟做', '会做', '熟练'];
+  // 每个阶段对应的 IP 表情图
+  const STAGE_IMG = {
+    '困惑': 'afan-1.png',
+    '有思路': 'afan-2.png',
+    '跟做': 'afan-3.png',
+    '会做': 'afan-4.png',
+    '熟练': 'afan-4.png',
+  };
+  const STAGE_COLOR = { '困惑': '#888780', '有思路': '#3478C9', '跟做': '#E8674F', '会做': '#0C8F82', '熟练': '#E9B949' };
+
+  function updateStage(stage) {
+    const idx = STAGES.indexOf(stage);
+    updateTreasure(stage);  // 寻宝图：学习进度的游戏化呈现（替代成长条）
+    const pct = idx >= 0 ? (idx / (STAGES.length - 1)) * 100 : 0;
+    $('stageDot').style.left = 'calc(' + pct + '% - 21px)';
+    $('stageFill').style.width = pct + '%';
+    const color = STAGE_COLOR[stage] || '#888780';
+    $('stageLabel').textContent = idx >= 0 ? stage : '困惑';
+    $('stageLabel').style.color = color;
+    const img = $('stageImg');
+    if (img) img.src = STAGE_IMG[stage] || 'afan.png';
+    if (img) img.style.boxShadow = '0 0 0 3px ' + color;
+    document.querySelectorAll('[data-stage-label]').forEach(sp => {
+      const cur = sp.getAttribute('data-stage-label') === stage;
+      sp.style.color = cur ? color : 'var(--muted)';
+      sp.style.fontWeight = cur ? '700' : '400';
+    });
+  }
+
+  // ---- 知识迷雾寻宝（学习进度的游戏化呈现）----
+  const TREASURE_MAP = { '有思路': 1, '跟做': 2, '会做': 3 };
+  let treasureStage = 0;
+  function updateTreasure(stage) {
+    const v = TREASURE_MAP[stage];
+    if (!v) return;
+    treasureStage = v;
+    $('treasureWrap').style.display = 'block';
+    sendTreasure();
+  }
+  function sendTreasure() {
+    const frame = $('treasureFrame');
+    if (!frame || !treasureStage) return;
+    try {
+      frame.contentWindow.postMessage({ target: 'knowledge-treasure', type: 'setProgress', value: treasureStage }, '*');
+    } catch (e) {}
+  }
+  function resetTreasure() {
+    treasureStage = 0;
+    $('treasureWrap').style.display = 'none';
+    const frame = $('treasureFrame');
+    if (frame) {
+      try { frame.contentWindow.postMessage({ target: 'knowledge-treasure', type: 'reset' }, '*'); } catch (e) {}
+    }
+  }
+
+  // ---- 文科得分点思维导图（放射状：中心 + 分支，补对一个点亮一个）----
+  function nodeFill(status) {
+    if (status === '已踩到') return '#0c8f82';
+    if (status === '部分踩到') return '#e9b949';
+    return '#e5e9e6';
+  }
+  function nodeText(status) {
+    if (status === '已踩到') return '#ffffff';
+    if (status === '部分踩到') return '#5a3d00';
+    return '#687980';
+  }
+  function renderCoverMap(dimensions) {
+    const container = $('mindMapContainer');
+    if (!container) return;
+    const W = 520, H = 400;
+    const cx = W / 2, cy = H / 2;
+    const N = dimensions.length || 1;
+    const R = Math.min(W, H) * 0.30;
+    const branchR = 42;
+    const pos = (i) => {
+      const a = (-90 + i * (360 / N)) * Math.PI / 180;
+      return [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+    };
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" style="display:block;">`;
+    for (let i = 0; i < N; i++) {
+      const p = pos(i);
+      svg += `<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#c9d4d1" stroke-width="1.5"/>`;
+    }
+    dimensions.forEach((d, i) => {
+      const p = pos(i);
+      const raw = d.name || ('得分点' + (i + 1));
+      const lines = raw.length > 4 ? [raw.slice(0, Math.ceil(raw.length / 2)), raw.slice(Math.ceil(raw.length / 2))] : [raw];
+      const score = d.score ? (d.score + '分') : '';
+      svg += `<g id="mind-node-${i}">`;
+      svg += `<circle cx="${p[0]}" cy="${p[1]}" r="${branchR}" fill="${nodeFill(d.status)}" stroke="#fff" stroke-width="2"/>`;
+      if (lines.length === 1) {
+        svg += `<text x="${p[0]}" y="${p[1] - 6}" text-anchor="middle" font-size="12" font-weight="600" fill="${nodeText(d.status)}">${lines[0]}</text>`;
+        if (score) svg += `<text x="${p[0]}" y="${p[1] + 15}" text-anchor="middle" font-size="10" fill="${nodeText(d.status)}">${score}</text>`;
+      } else {
+        svg += `<text x="${p[0]}" y="${p[1] - 10}" text-anchor="middle" font-size="11" font-weight="600" fill="${nodeText(d.status)}">${lines[0]}</text>`;
+        svg += `<text x="${p[0]}" y="${p[1] + 6}" text-anchor="middle" font-size="11" font-weight="600" fill="${nodeText(d.status)}">${lines[1]}</text>`;
+        if (score) svg += `<text x="${p[0]}" y="${p[1] + 24}" text-anchor="middle" font-size="9" fill="${nodeText(d.status)}">${score}</text>`;
+      }
+      svg += `</g>`;
+    });
+    svg += `<circle cx="${cx}" cy="${cy}" r="34" fill="#102532"/>`;
+    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" dominant-baseline="central">得分点</text>`;
+    svg += `</svg>`;
+    container.innerHTML = svg;
+    container.style.display = 'block';
+    if ($('visualFrame')) $('visualFrame').style.display = 'none';
+    coverMode = true;
+    $('stageBar').style.display = 'none';
+  }
+  function lightNode(i) {
+    const g = document.getElementById('mind-node-' + i);
+    if (!g) return;
+    g.querySelector('circle').setAttribute('fill', '#0c8f82');
+    g.querySelectorAll('text').forEach(t => t.setAttribute('fill', '#ffffff'));
+  }
+  function lightAllCover() {
+    document.querySelectorAll('[id^="mind-node-"]').forEach(g => {
+      g.querySelector('circle').setAttribute('fill', '#0c8f82');
+      g.querySelectorAll('text').forEach(t => t.setAttribute('fill', '#ffffff'));
+    });
+  }
+  function hideCoverMap() {
+    const c = $('mindMapContainer');
+    if (c) c.style.display = 'none';
+    if ($('visualFrame')) $('visualFrame').style.display = '';
+    coverMode = false;
+  }
+
+  // ---- 演示模式（一键播放完整流程，无需 API Key）----
+  const DEMO = [
+    { t: 'teacher', stage: '有思路', text: '你第(1)问的通项公式做得很好。第(2)问要证明一个和式小于 2，我们先看看 1/aₙ 是什么样子？' },
+    { t: 'student', text: '1/aₙ = 2/[n(n+1)]' },
+    { t: 'teacher', stage: '有思路', text: '对！那 1/[n(n+1)] 能不能拆成两个分数相减？' },
+    { t: 'student', text: '1/n − 1/(n+1)' },
+    { t: 'teacher', stage: '跟做', text: '漂亮，这就是裂项。现在把前 n 项加起来，中间项会发生什么？' },
+    { t: 'student', text: '中间的都抵消了，剩下 2(1 − 1/(n+1))' },
+    { t: 'teacher', stage: '跟做', text: '对。最后，1 − 1/(n+1) 和 1 比，谁大？' },
+    { t: 'student', text: '比 1 小，所以整个式子小于 2' },
+    { t: 'teacher', stage: '跟做', text: '你已经跟着做出来了。现在进入「独立验证」——关掉所有提示，你自己完整做一遍第(2)问。' },
+    { t: 'student', text: '（独立完整作答）\n1/aₙ = 2/[n(n+1)] = 2(1/n − 1/(n+1))\n∴ 1/a₁ + 1/a₂ + … + 1/aₙ\n= 2(1 − 1/2 + 1/2 − 1/3 + … + 1/n − 1/(n+1))\n= 2(1 − 1/(n+1)) < 2' },
+    { t: 'teacher', stage: '会做', text: '系统已批改：你的独立作答步骤完整、结果正确。你真正「会做」这道题了。' },
+    { t: 'avatar', text: '阿凡提问 · 费曼检验' },
+    { t: 'teacher', text: '好，现在换我来考你，看看你是不是真懂。第一个问题：为什么要把 1/aₙ 拆成两项相减？' },
+    { t: 'student', text: '（语音回答）因为拆开后，求和时相邻的项能互相抵消' },
+    { t: 'teacher', text: '对。第二个问题：抵消之后，为什么结果一定小于 2？' },
+    { t: 'student', text: '（语音回答）剩下 2(1 − 1/(n+1))，1/(n+1) 是正的，所以 1 − 1/(n+1) 小于 1，乘以 2 也小于 2' },
+    { t: 'teacher', text: '答得很准。你能讲清「为什么抵消」和「为什么小于 2」，说明你真的掌握了。' },
+  ];
+
+  // 文科演示：对标式讲题（按评分表补漏得分点，不是按步骤算）
+  const DEMO_HISTORY = [
+    { t: 'teacher', stage: '有思路', text: '你答到了参战的进步意义，这一点很好——中国首次主动参与国际体系、推动民族觉醒，都踩到分了。但"评析"一个抉择，光说好处不完整。想一下：参战之后，中国想拿回的东西，都拿回来了吗？' },
+    { t: 'student', text: '嗯……巴黎和会？山东问题？' },
+    { t: 'teacher', stage: '跟做', text: '对，往巴黎和会想。中国作为"战胜国"，在巴黎和会上，山东的权益怎么样了？' },
+    { t: 'student', text: '山东被列强转交给了日本。' },
+    { t: 'teacher', stage: '跟做', text: '对。那这暴露了什么？中国明明是战胜国，自己的权益却保不住，这说明当时的外交怎么样？' },
+    { t: 'student', text: '说明"弱国无外交"，光有战胜国身份，没有实力，还是拿不到平等权益。' },
+    { t: 'teacher', stage: '跟做', hit: 2, text: '对，这就是"历史局限"这一层。规范写法是：巴黎和会上列强将山东权益转让日本，中国"战胜国"身份落空，暴露弱国外交的本质——身份不等于权益，实力决定话语权。你意思对了，把它写利索。' },
+    { t: 'teacher', stage: '跟做', text: '现在进步意义、历史局限两个角度都补齐了。还差一层"总评"：参战到底是纯主动、纯被动，还是两者都有？' },
+    { t: 'student', text: '是复杂的抉择，既有主动突破，也有弱国的局限。' },
+    { t: 'teacher', stage: '会做', hit: 3, text: '对，这就是总评。现在所有得分点都覆盖了。关掉提示，自己独立把这道评析完整重写一遍。' },
+    { t: 'student', text: '（独立重写）中国参战是半殖民地弱国在国际格局剧变下、基于生存与利益做出的复杂抉择：既有主动参与国际体系、推动民族觉醒、收回租界的进步性；也有巴黎和会山东权益被转交日本、"战胜国"身份落空的局限，暴露了弱国外交中实力决定话语权的本质。' },
+    { t: 'teacher', stage: '会做', text: '系统已按评分表核对：进步意义、历史局限、背景总评都踩到了，材料结合也到位。你真正「会做」这道题了。' },
+  ];
+
+  const DEMO_CHINESE = [
+    { t: 'teacher', stage: '有思路', text: '你抓住了"无用之用"这一层，不错。但这道题要按"认知误区→价值重构→精神逍遥"三层来分析，你只答了中间一层。先看第一层：材料一说"岂唯形骸有聋盲哉？夫知亦有之"，这里的"聋盲"指的是什么？' },
+    { t: 'student', text: '指人的心智也有局限，就像盲人看不见、聋人听不见。' },
+    { t: 'teacher', stage: '跟做', text: '对。那这种"认知局限"具体表现在哪？世人评判事物，只认什么标准？' },
+    { t: 'student', text: '只以"有没有用、能不能获利"为标准，太功利。' },
+    { t: 'teacher', stage: '跟做', hit: 1, text: '对，这就是"认知误区"——只认功利。那第三层"精神逍遥"呢？当人不再被"有用没用"框住，会达到什么状态？' },
+    { t: 'student', text: '不被外物裹挟，内心自在逍遥。' },
+    { t: 'teacher', stage: '跟做', hit: 3, text: '对，三层齐了：认知误区（只认功利）→ 价值重构（无用之用）→ 精神逍遥（不被外物裹挟）。规范写法比如：世人以功利为唯一标准，认知存在局限；庄子提出无用之用，打破单一价值；由此跳出外物得失，抵达精神逍遥。' },
+    { t: 'teacher', stage: '会做', text: '三层都补齐了。关掉提示，自己独立把这条"认知误区→价值重构→精神逍遥"的逻辑完整写一遍。' },
+    { t: 'student', text: '（独立重写）世人仅以实用获利评判万物，心智如盲聋般存在认知误区；庄子以"无用之为用"打破唯功利标准，完成价值重构；由此跳出外物得失的束缚，抵达自在逍遥的精神境界。' },
+    { t: 'teacher', stage: '会做', text: '系统已按评分表核对：三层逻辑、材料结合、表述都到位了。你真正「会做」了。' },
+  ];
+
+  const DEMOS = { '6889': DEMO, '17045': DEMO_HISTORY, '9005851': DEMO_CHINESE };
+
+  function playDemo() {
+    let script = DEMOS[current.id];
+    if (!script) { selectQuestion(0); script = DEMO; }
+    const dims = DEMO_DIMS[current.id];
+    if (dims) renderCoverMap(dims);
+    $('hint').style.display = 'none';
+    started = true;
+    updateStage('有思路');
+    let i = 0;
+    const timer = setInterval(() => {
+      if (i >= script.length) { clearInterval(timer); return; }
+      const item = script[i];
+      if (item.hit) lightNode(item.hit - 1);
+      if (item.t === 'teacher') {
+        if (item.stage) {
+          updateStage(item.stage);
+          if (item.stage === '会做') lightAllCover();
+        }
+        addMsg('teacher', item.text);
+      } else if (item.t === 'avatar') {
+        addMsg('avatar', item.text);
+      } else {
+        addMsg('student', item.text);
+      }
+      i++;
+    }, 1600);
+  }
+
+  $('demoBtn').onclick = playDemo;
+
+  $('visualFrame').addEventListener('load', () => syncVisualStepLabel());
+  $('treasureFrame').addEventListener('load', () => sendTreasure());
+
+  renderQuestion();
+</script>
+</body>
+</html>
