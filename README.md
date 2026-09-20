@@ -22,7 +22,7 @@
 
 ## 更新网站
 
-网站源码在 `public/`。推送到 `main` 后，[Publish website 工作流](https://github.com/serphen591/afan-qisi/actions/workflows/pages.yml)先运行测试，再把该目录发布到 GitHub Pages。设置中的 Pages 发布来源为 GitHub Actions。
+网站源码在 `public/`。推送到 `main` 后，[Publish website 工作流](https://github.com/2639678745-coder/afan-qisi/actions/workflows/pages.yml)先运行测试，再把该目录发布到 GitHub Pages。设置中的 Pages 发布来源为 GitHub Actions。
 
 网站不依赖 `server.js`。`public/ai-client.js` 包含可在浏览器直接运行的 AI 调用逻辑，并兼容旧本地入口。维护者可用 Node.js 24 运行 `node --test tests/*.test.cjs`；访问者不需要 Node.js。
 
@@ -30,4 +30,4 @@
 
 ## 旧版下载
 
-之前的本地安装包仍保留在 [Releases](https://github.com/serphen591/afan-qisi/releases)，旧版说明见 [README.txt](README.txt)。日常使用和分享推荐直接打开上方网页版。
+之前的本地安装包仍保留在 [Releases](https://github.com/2639678745-coder/afan-qisi/releases)，旧版说明见 [README.txt](README.txt)。日常使用和分享推荐直接打开上方网页版。

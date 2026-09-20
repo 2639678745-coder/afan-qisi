@@ -1,7 +1,7 @@
 阿凡启思 · GitHub 网页版
 =======================
 
-直接打开：https://serphen591.github.io/afan-qisi/
+直接打开：https://2639678745-coder.github.io/afan-qisi/
 无需终端、Node.js、Docker，也不需要启动本地服务。
 点「演示完整流程」即可体验；真实 AI 讲题需填写自己的 DeepSeek API Key。
 默认不保存密钥，主动勾选后才会记住；笔记保存在当前浏览器。
