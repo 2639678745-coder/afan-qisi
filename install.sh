@@ -21,7 +21,7 @@ afan_install() {
   printf -v cleanup 'rm -rf -- %q' "$temp"
   trap "$cleanup" EXIT
   printf '阿凡启思｜下载程序中……\n'
-  curl -fSL --retry 2 --connect-timeout 20 --max-time 300 \
+  curl --http1.1 -fSL --retry 2 --connect-timeout 20 --max-time 300 \
     "$package_url" -o "$temp/afan-qisi.tar.gz"
   if command -v shasum >/dev/null; then
     actual="$(shasum -a 256 "$temp/afan-qisi.tar.gz" | awk '{print $1}')"
