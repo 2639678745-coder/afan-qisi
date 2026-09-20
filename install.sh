@@ -5,11 +5,18 @@ set -euo pipefail
 afan_install() {
   export PATH="${PATH:-}:/usr/bin:/bin:/usr/sbin:/sbin"
   case "$(uname -s)" in Darwin|Linux) ;; *) printf '此安装命令支持 macOS / Linux。\n' >&2; return 1 ;; esac
-  local package_url="${AFAN_PACKAGE_URL:-https://raw.githubusercontent.com/serphen591/afan-qisi/v1.0.0/distribution/afan-qisi.tar.gz}"
-  local expected='248e509cb592597fcbddb4a83e77199e1afbc6ac2fb1cf13498632b2695830fb'
+  local package_url="${AFAN_PACKAGE_URL:-https://raw.githubusercontent.com/serphen591/afan-qisi/v1.0.2/distribution/afan-qisi.tar.gz}"
+  local expected='61a196f0025523ffaaaffea2efef76e2c89e595bba390b6f2ff75da74444368f'
   local install_dir="${AFAN_INSTALL_DIR:-$HOME/.afan-qisi}"
   local bin_dir="${AFAN_BIN_DIR:-$HOME/.local/bin}"
   local temp actual rc line cleanup backup=''
+  local proxy
+  local -a curl_args=(--http1.1)
+  # macOS 的系统代理不会自动传给 curl；保留用户显式设置的代理环境变量。
+  if [ "$(uname -s)" = Darwin ] && [ -z "${https_proxy:-}${HTTPS_PROXY:-}${all_proxy:-}${ALL_PROXY:-}" ]; then
+    proxy="$(/usr/sbin/scutil --proxy | awk '/HTTPSEnable :/ {enabled=$3} /HTTPSProxy :/ {host=$3} /HTTPSPort :/ {port=$3} END {if (enabled==1 && host!="" && port>0) {if (index(host, ":")>0) host="["host"]"; printf "http://%s:%d",host,port}}')"
+    if [ -n "$proxy" ]; then curl_args+=(--proxy "$proxy"); fi
+  fi
   command -v curl >/dev/null || { printf '需要系统 curl 命令。\n' >&2; return 1; }
   command -v tar >/dev/null || { printf '需要系统 tar 命令。\n' >&2; return 1; }
   if [ -e "$bin_dir/afan-qisi" ] && ! LC_ALL=C grep -aFq '# afan-qisi managed launcher' "$bin_dir/afan-qisi"; then
@@ -21,7 +28,7 @@ afan_install() {
   printf -v cleanup 'rm -rf -- %q' "$temp"
   trap "$cleanup" EXIT
   printf '阿凡启思｜下载程序中……\n'
-  curl --http1.1 -fSL --retry 2 --connect-timeout 20 --max-time 300 \
+  curl "${curl_args[@]}" -fSL --retry 2 --connect-timeout 20 --max-time 300 \
     "$package_url" -o "$temp/afan-qisi.tar.gz"
   if command -v shasum >/dev/null; then
     actual="$(shasum -a 256 "$temp/afan-qisi.tar.gz" | awk '{print $1}')"

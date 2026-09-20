@@ -35,6 +35,11 @@ if [ -z "$AFAN_NODE" ]; then
   AFAN_TARGET="$AFAN_CACHE/$AFAN_STEM"
   AFAN_NODE="$AFAN_TARGET/bin/node"
   if ! usable_node "$AFAN_NODE"; then
+    AFAN_CURL_ARGS=(--http1.1)
+    if [ "$AFAN_OS" = darwin ] && [ -z "${https_proxy:-}${HTTPS_PROXY:-}${all_proxy:-}${ALL_PROXY:-}" ]; then
+      AFAN_PROXY="$(/usr/sbin/scutil --proxy | awk '/HTTPSEnable :/ {enabled=$3} /HTTPSProxy :/ {host=$3} /HTTPSPort :/ {port=$3} END {if (enabled==1 && host!="" && port>0) {if (index(host, ":")>0) host="["host"]"; printf "http://%s:%d",host,port}}')"
+      if [ -n "$AFAN_PROXY" ]; then AFAN_CURL_ARGS+=(--proxy "$AFAN_PROXY"); fi
+    fi
     command -v curl >/dev/null || fail '系统缺少 curl，请先安装 curl。'
     command -v tar >/dev/null || fail '系统缺少 tar，请先安装 tar。'
     if command -v shasum >/dev/null; then AFAN_HASH_TOOL=shasum
@@ -46,10 +51,10 @@ if [ -z "$AFAN_NODE" ]; then
     AFAN_ARCHIVE="$AFAN_STEM.tar.gz"
     AFAN_BASE="https://nodejs.org/dist/$AFAN_VERSION"
     printf '首次启动：正在从 Node.js 官网准备运行环境，无需管理员密码。\n下载完成后自动启动，请稍候……\n'
-    curl --fail --location --retry 2 --connect-timeout 20 --max-time 600 \
+    curl "${AFAN_CURL_ARGS[@]}" --fail --location --retry 2 --connect-timeout 20 --max-time 600 \
       --output "$AFAN_TEMP/$AFAN_ARCHIVE" "$AFAN_BASE/$AFAN_ARCHIVE" \
       || fail '下载失败，请检查网络后重新运行同一条命令。'
-    curl --fail --silent --show-error --location --retry 2 --connect-timeout 20 --max-time 60 \
+    curl "${AFAN_CURL_ARGS[@]}" --fail --silent --show-error --location --retry 2 --connect-timeout 20 --max-time 60 \
       --output "$AFAN_TEMP/SHASUMS256.txt" "$AFAN_BASE/SHASUMS256.txt" \
       || fail '校验文件下载失败，请检查网络后重试。'
     AFAN_EXPECTED="$(awk -v archive="$AFAN_ARCHIVE" '$2 == archive {print $1}' "$AFAN_TEMP/SHASUMS256.txt")"

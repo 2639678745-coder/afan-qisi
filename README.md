@@ -5,12 +5,14 @@
 ## macOS / Linux：终端任意目录，一条命令启动
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/serphen591/afan-qisi/main/install.sh | bash
+curl --http1.1 -fsSL https://raw.githubusercontent.com/serphen591/afan-qisi/v1.0.2/install.sh | bash
 ```
 
 无需事先下载源文件、切换目录或安装 Node.js / Docker。安装器会下载并校验程序包，安装到 `~/.afan-qisi/app`，缺少 Node.js 时自动从 Node.js 官网下载专用运行环境。启动成功后打开浏览器；未能自动打开时，手动访问 http://localhost:3210。
 
 首次安装需要访问 GitHub 和 Node.js 官网。终端会显示下载进度，请等待完成。
+
+在 macOS 上，程序包和运行环境的下载会自动使用已启用的系统 HTTPS 代理；已有代理环境变量时优先保留它们，不修改系统网络设置。
 
 安装完成后，新开终端，在任意目录输入：
 
@@ -38,4 +40,4 @@ macOS 支持 Apple Silicon 和 Intel。Linux 支持 x64 / ARM64，需有 curl、
 
 已有 Node.js 22+ 时，可运行 `node afan.js`。Docker 用户可运行 `docker compose -p afan-qisi up -d --build`。详细功能和传统启动方式见 [README.txt](README.txt)。
 
-维护者可用 `python3 tools/build-release.py --repo serphen591/afan-qisi --tag v1.0.0` 生成 `release/` 下的程序包、安装脚本及校验文件，并更新仓库的 `install.sh` 与 `distribution/`。提交这些文件后创建对应标签，再发布 Release；安装脚本绑定版本和包的 SHA-256。
+维护者可用 `python3 tools/build-release.py --repo serphen591/afan-qisi --tag v1.0.2` 生成 `release/` 下的程序包、安装脚本及校验文件，并更新仓库的 `install.sh` 与 `distribution/`。提交这些文件后创建对应标签，再发布 Release；安装脚本绑定版本和包的 SHA-256。

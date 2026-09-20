@@ -311,7 +311,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ app: 'afan-qisi', version: '1.0.0' }));
+    res.end(JSON.stringify({ app: 'afan-qisi', version: '1.0.2' }));
     return;
   }
 
