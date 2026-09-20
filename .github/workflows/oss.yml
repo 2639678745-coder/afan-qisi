@@ -40,7 +40,7 @@ jobs:
           OSS_SK: ${{ secrets.OSS_SK }}
           OSS_BUCKET: ycc-prd
           OSS_REGION: cn-shanghai
-          OSS_PREFIX: afan-qisi
+          OSS_PREFIX: van-school-2606/afan-qisi
           OSS_SOURCE: public
           OSS_SYNC_DELETE: ${{ github.event_name == 'workflow_dispatch' && inputs.delete_orphans || false }}
         run: node scripts/oss_sync.mjs
