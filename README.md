@@ -1,6 +1,6 @@
 # 阿凡启思 · 在线讲题
 
-**直接打开：[https://serphen591.github.io/afan-qisi/](https://serphen591.github.io/afan-qisi/)**
+**直接打开：[https://2639678745-coder.github.io/afan-qisi/](https://2639678745-coder.github.io/afan-qisi/)**
 
 把这个网址发给别人即可使用。无需下载程序、打开终端，也无需安装 Node.js 或 Docker。
 
