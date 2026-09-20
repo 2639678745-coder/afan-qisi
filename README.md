@@ -1,43 +1,33 @@
-# 阿凡启思 · afan-qisi
+# 阿凡启思 · 在线讲题
 
-本地运行的 AI 引导讲题 Demo。支持诊断、分步讲题、文科得分点、手写笔记和几何演示。
+**直接打开：[https://serphen591.github.io/afan-qisi/](https://serphen591.github.io/afan-qisi/)**
 
-## macOS / Linux：终端任意目录，一条命令启动
+把这个网址发给别人即可使用。无需下载程序、打开终端，也无需安装 Node.js 或 Docker。
 
-```bash
-curl --http1.1 -fsSL https://raw.githubusercontent.com/serphen591/afan-qisi/v1.0.2/install.sh | bash
-```
+## 怎么使用
 
-无需事先下载源文件、切换目录或安装 Node.js / Docker。安装器会下载并校验程序包，安装到 `~/.afan-qisi/app`，缺少 Node.js 时自动从 Node.js 官网下载专用运行环境。启动成功后打开浏览器；未能自动打开时，手动访问 http://localhost:3210。
+1. 打开网页，选择题目。
+2. 点「演示完整流程」体验预设讲题过程，无需 API Key。
+3. 需要真实 AI 讲题时，在顶部填写自己的 DeepSeek API Key，再点「开始引导式讲题」。
 
-首次安装需要访问 GitHub 和 Node.js 官网。终端会显示下载进度，请等待完成。
+支持引导对话、作答诊断、文科得分点思维导图、几何互动、公式输入和手写笔记。语音输入依赖浏览器支持和麦克风权限。演示中的对话与学习进度为预设内容，不代表真实 AI 评估。
 
-在 macOS 上，程序包和运行环境的下载会自动使用已启用的系统 HTTPS 代理；已有代理环境变量时优先保留它们，不修改系统网络设置。
+## 密钥与数据
 
-安装完成后，新开终端，在任意目录输入：
+- GitHub Pages 只托管网页，AI 请求由浏览器直接发送到顶部填写的 HTTPS 服务地址，默认 DeepSeek。真实调用使用访问者自己的 API 额度。
+- 仓库和网页没有内置 API Key。默认仅在当前页面持有密钥；勾选「在此浏览器记住密钥」才写入浏览器存储，可点「清除密钥」删除。
+- 手写笔记保存在当前浏览器，不会跨设备同步。笔记与原来的 localhost 页面存储分开；清理网站数据会清除笔记。
+- 使用真实 AI 时，题目、填写的作答、批题信息、对话及主动提交的手写图片会发送到选定服务。自由笔记画板不会自动发送。
+- 自定义服务地址需兼容 Chat Completions 接口，并允许本网站的跨域请求。公式、几何和 AI 功能需要网络连接。
 
-```bash
-afan-qisi
-```
+## 更新网站
 
-保持提供服务的终端窗口运行；按 `Ctrl+C` 停止服务。已运行时，再次输入命令会打开现有服务。换端口使用 `afan-qisi --port 3211`，只启动服务使用 `afan-qisi --no-open`。
+网站源码在 `public/`。推送到 `main` 后，[Publish website 工作流](https://github.com/serphen591/afan-qisi/actions/workflows/pages.yml)先运行测试，再把该目录发布到 GitHub Pages。设置中的 Pages 发布来源为 GitHub Actions。
 
-命令安装在 `~/.local/bin/afan-qisi`，安装器在 zsh / bash 的用户配置中追加 PATH 设置。安装前已经打开的终端可先重新打开；也可直接运行 `~/.local/bin/afan-qisi`。
+网站不依赖 `server.js`。`public/ai-client.js` 包含可在浏览器直接运行的 AI 调用逻辑，并兼容旧本地入口。维护者可用 Node.js 24 运行 `node --test tests/*.test.cjs`；访问者不需要 Node.js。
 
-macOS 支持 Apple Silicon 和 Intel。Linux 支持 x64 / ARM64，需有 curl、tar、SHA-256 校验工具，且系统兼容 Node.js 官方运行时。Linux 图形环境通过 xdg-open 打开浏览器。当前发布在 Apple Silicon Mac 上验证；其他平台尚未实机验证。
+接口依据：[DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)、[思考模式参数](https://api-docs.deepseek.com/guides/thinking_mode/)。
 
-## Windows
+## 旧版下载
 
-从 [Releases](https://github.com/serphen591/afan-qisi/releases/latest) 下载 `afan-qisi.zip`，完整解压后双击 `start.cmd`。它会查找 Node.js，缺少时下载专用运行环境，再启动网页。此版本 Windows 使用下载包入口，不使用上面的 bash 命令。
-
-## 使用
-
-演示流程无需 API Key。真实 AI 功能需在网页中填写自己的 DeepSeek API Key，并保持联网；公式、几何等前端组件也使用在线 CDN。
-
-本地服务默认只监听本机。API Key 和手写笔记保存在各自浏览器的 localStorage 中，固定使用 `http://localhost:3210` 可继续读取原来的本地数据。
-
-## 开发与 Docker
-
-已有 Node.js 22+ 时，可运行 `node afan.js`。Docker 用户可运行 `docker compose -p afan-qisi up -d --build`。详细功能和传统启动方式见 [README.txt](README.txt)。
-
-维护者可用 `python3 tools/build-release.py --repo serphen591/afan-qisi --tag v1.0.2` 生成 `release/` 下的程序包、安装脚本及校验文件，并更新仓库的 `install.sh` 与 `distribution/`。提交这些文件后创建对应标签，再发布 Release；安装脚本绑定版本和包的 SHA-256。
+之前的本地安装包仍保留在 [Releases](https://github.com/serphen591/afan-qisi/releases)，旧版说明见 [README.txt](README.txt)。日常使用和分享推荐直接打开上方网页版。
