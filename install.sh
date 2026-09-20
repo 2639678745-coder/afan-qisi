@@ -5,8 +5,8 @@ set -euo pipefail
 afan_install() {
   export PATH="${PATH:-}:/usr/bin:/bin:/usr/sbin:/sbin"
   case "$(uname -s)" in Darwin|Linux) ;; *) printf '此安装命令支持 macOS / Linux。\n' >&2; return 1 ;; esac
-  local package_url="${AFAN_PACKAGE_URL:-https://raw.githubusercontent.com/__REPO__/__TAG__/distribution/afan-qisi.tar.gz}"
-  local expected='__SHA256__'
+  local package_url="${AFAN_PACKAGE_URL:-https://raw.githubusercontent.com/serphen591/afan-qisi/v1.0.0/distribution/afan-qisi.tar.gz}"
+  local expected='248e509cb592597fcbddb4a83e77199e1afbc6ac2fb1cf13498632b2695830fb'
   local install_dir="${AFAN_INSTALL_DIR:-$HOME/.afan-qisi}"
   local bin_dir="${AFAN_BIN_DIR:-$HOME/.local/bin}"
   local temp actual rc line cleanup backup=''

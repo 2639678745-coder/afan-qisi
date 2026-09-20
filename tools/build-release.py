@@ -4,6 +4,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import re
+import shutil
 import tarfile
 import zipfile
 
@@ -40,5 +41,11 @@ script = script.replace('__REPO__', args.repo).replace('__TAG__', args.tag).repl
 (output / 'SHA256SUMS').write_text(''.join(
     f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n'
     for p in [tar_path, zip_path, output / 'install.sh']))
+# 同时提供 GitHub 原始文件入口，便于只用 curl 的终端直接安装。
+distribution = root / 'distribution'
+distribution.mkdir(exist_ok=True)
+for name in ['afan-qisi.tar.gz', 'afan-qisi.zip', 'SHA256SUMS']:
+    shutil.copyfile(output / name, distribution / name)
+shutil.copyfile(output / 'install.sh', root / 'install.sh')
 print(f'Built {len(files)} app files into {output}')
 print(f'Program SHA-256: {sha}')

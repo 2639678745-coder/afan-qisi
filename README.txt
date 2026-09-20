@@ -4,7 +4,7 @@ AI 讲题 Demo · 阿凡启思（afan-qisi）启动说明
 终端任意目录启动（macOS / Linux，推荐）
 复制一条命令，自动下载、安装并启动：
 
-  curl -fsSL https://github.com/serphen591/afan-qisi/releases/latest/download/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/serphen591/afan-qisi/main/install.sh | bash
 
 以后新开终端，在任意目录输入：
 
